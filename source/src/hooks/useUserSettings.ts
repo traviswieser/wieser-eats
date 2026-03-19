@@ -1,47 +1,71 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, doc, setDoc, onSnapshot } from '@/firebase';
 import type { User } from '@/firebase';
 import type { UserSettings } from '@/types';
 
-const LS_KEY = 'mealmate-settings';
+// Per-user localStorage key — never shared between accounts on the same device.
+function lsKey(uid: string) { return `mealmate-settings-${uid}`; }
 
-// Stores settings in the user document at users/{uid} as a 'settings' field.
-// This is the SAME document path useHousehold already reads/writes, so it
-// is always covered by Firestore rules. Previously used users/{uid}/data/settings
-// (a subcollection) which was blocked by rules and failed silently.
+// Wipe every mealmate-settings-* key that does NOT belong to the current user.
+// Called on sign-in so no previous account's data is left in localStorage.
+function clearOtherUsersCache(currentUid: string) {
+  const toRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('mealmate-settings-') && k !== lsKey(currentUid)) {
+      toRemove.push(k);
+    }
+  }
+  toRemove.forEach(k => localStorage.removeItem(k));
+}
+
 export function useUserSettings(user: User | null, defaultValue: UserSettings) {
-  const [data, setData] = useState<UserSettings>(() => {
-    try {
-      const stored = localStorage.getItem(LS_KEY);
-      if (stored) return { ...defaultValue, ...JSON.parse(stored) };
-    } catch {}
-    return defaultValue;
-  });
+  // Always start with defaults — never seed from a shared/anonymous localStorage key.
+  const [data, setData] = useState<UserSettings>(defaultValue);
   const [loaded, setLoaded] = useState(false);
+  const prevUidRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    const uid = user?.uid ?? null;
+
+    // User changed (including sign-out) → reset to defaults immediately
+    // so no previous user's data is ever visible to the new one.
+    if (uid !== prevUidRef.current) {
+      setData(defaultValue);
+      setLoaded(false);
+      prevUidRef.current = uid;
+    }
+
+    if (!uid) {
       setLoaded(true);
       return;
     }
 
-    // Listen to the top-level user doc — same path useHousehold uses,
-    // so Firestore rules always permit it.
+    // Safe: remove any other user's cached settings on this device.
+    clearOtherUsersCache(uid);
+
+    // Warm load from this user's own localStorage cache to avoid blank flash.
+    try {
+      const cached = localStorage.getItem(lsKey(uid));
+      if (cached) setData({ ...defaultValue, ...JSON.parse(cached) });
+    } catch {}
+
+    // Live sync from Firestore — source of truth.
     const unsub = onSnapshot(
-      doc(db, 'users', user.uid),
+      doc(db, 'users', uid),
       (snap) => {
         if (snap.exists()) {
           const remote = snap.data()?.settings as UserSettings | undefined;
           if (remote) {
             const merged = { ...defaultValue, ...remote };
             setData(merged);
-            localStorage.setItem(LS_KEY, JSON.stringify(merged));
+            localStorage.setItem(lsKey(uid), JSON.stringify(merged));
           }
         }
         setLoaded(true);
       },
       (_err) => {
-        // Offline or rules error — already loaded from localStorage
+        // Offline — already loaded from per-user cache above.
         setLoaded(true);
       }
     );
@@ -51,15 +75,12 @@ export function useUserSettings(user: User | null, defaultValue: UserSettings) {
 
   const save = useCallback(async (newData: UserSettings) => {
     setData(newData);
-    localStorage.setItem(LS_KEY, JSON.stringify(newData));
-    if (user) {
+    const uid = user?.uid;
+    if (uid) {
+      // Cache under per-user key only.
+      localStorage.setItem(lsKey(uid), JSON.stringify(newData));
       try {
-        // Merge into the user doc so we don't overwrite householdId etc.
-        await setDoc(
-          doc(db, 'users', user.uid),
-          { settings: newData },
-          { merge: true }
-        );
+        await setDoc(doc(db, 'users', uid), { settings: newData }, { merge: true });
       } catch (e) {
         console.error('Settings sync error:', e);
       }

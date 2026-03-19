@@ -101,6 +101,8 @@ export default function App() {
   }, []);
 
   const handleSignOut = async () => {
+    // Remove the legacy shared settings key so it can never leak to the next user.
+    localStorage.removeItem('mealmate-settings');
     await signOut(auth);
     setPage('chef');
   };

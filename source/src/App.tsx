@@ -120,6 +120,11 @@ export default function App() {
     saveRecipeHistory(updated);
   };
 
+  const onLoadFromHistory = (recipes: Recipe[]) => {
+    // Just restore the recipes to view — do NOT add a new history entry
+    saveCurrentRecipes(recipes);
+  };
+
   const clearCurrentRecipes = () => saveCurrentRecipes([]);
 
   // Auth loading state
@@ -177,12 +182,13 @@ export default function App() {
             onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList}
             isFavorite={isFavorite} onGoToSettings={() => setPage('settings')}
             savedRecipes={currentRecipes} onRecipesGenerated={onRecipesGenerated}
+            onLoadFromHistory={onLoadFromHistory}
             onClearRecipes={clearCurrentRecipes} recipeHistory={recipeHistory} />
         )}
         {page === 'pantry' && <Pantry pantry={pantry} savePantry={savePantry} loaded={pantryLoaded} />}
         {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onAddToShoppingList={addToShoppingList} onAdd={addToMealPlan} getMemberColor={hh.getMemberColor} getMemberName={hh.getMemberName} inHousehold={inHousehold} />}
         {page === 'shopping' && <ShoppingList list={shoppingList} saveList={saveShoppingList} />}
-        {page === 'favorites' && <Favorites favorites={favorites} onRemove={removeFromFavorites} onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList} currentUserId={user?.uid} inHousehold={inHousehold} getMemberName={hh.getMemberName} getMemberColor={hh.getMemberColor} />}
+        {page === 'favorites' && <Favorites favorites={favorites} onRemove={removeFromFavorites} onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList} onAddCustomRecipe={addToFavorites} settings={settings} currentUserId={user?.uid} inHousehold={inHousehold} getMemberName={hh.getMemberName} getMemberColor={hh.getMemberColor} />}
         {page === 'settings' && <Settings settings={settings} saveSettings={saveSettings} user={user} onSignOut={handleSignOut} appName={`${getLastName()} Eats`} household={hh.household} onCreateHousehold={hh.createHousehold} onJoinHousehold={hh.joinHousehold} onLeaveHousehold={hh.leaveHousehold} onGoToUpdates={() => setPage('updates')} />}
         {page === 'updates' && <AppUpdates onBack={() => setPage('settings')} />}
       </main>

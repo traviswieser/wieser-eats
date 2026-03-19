@@ -19,6 +19,7 @@ interface ChefAIProps {
   onGoToSettings: () => void;
   savedRecipes: Recipe[];
   onRecipesGenerated: (recipes: Recipe[]) => void;
+  onLoadFromHistory: (recipes: Recipe[]) => void;
   onClearRecipes: () => void;
   recipeHistory: RecipeHistory[];
 }
@@ -72,7 +73,7 @@ async function callAI(provider: AIProvider, apiKey: string, messages: any[], has
   return data.choices?.[0]?.message?.content || '';
 }
 
-export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings, savedRecipes, onRecipesGenerated, onClearRecipes, recipeHistory }: ChefAIProps) {
+export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings, savedRecipes, onRecipesGenerated, onLoadFromHistory, onClearRecipes, recipeHistory }: ChefAIProps) {
   const [filters, setFilters] = useState<AIFilters>({ ...defaultFilters, servings: settings.defaultServings });
   const [query, setQuery] = useState('');
   const [selectedProteins, setSelectedProteins] = useState<string[]>([]);
@@ -266,7 +267,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
               </p>
               {batch.recipes.map(recipe => (
                 <Card key={recipe.id} className="border-border/30 bg-card/30 cursor-pointer hover:border-primary/20 transition-colors"
-                  onClick={() => onRecipesGenerated(batch.recipes)}>
+                  onClick={() => onLoadFromHistory(batch.recipes)}>
                   <CardContent className="p-3">
                     <p className="text-sm font-medium">{recipe.name}</p>
                     <div className="flex gap-1.5 mt-1">

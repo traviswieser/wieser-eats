@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStorage } from './hooks/useStorage';
+import { useUserSettings } from './hooks/useUserSettings';
 import { auth, onAuthStateChanged, signOut, type User } from './firebase';
 import { useHousehold } from './hooks/useHousehold';
 import { AuthScreen } from './components/pages/AuthScreen';
@@ -10,7 +11,7 @@ import { ShoppingList } from './components/pages/ShoppingList';
 import { Favorites } from './components/pages/Favorites';
 import { Settings } from './components/pages/Settings';
 import { AppUpdates } from './components/pages/AppUpdates';
-import type { PageName, PantryItem, Recipe, MealPlanEntry, ShoppingItem, UserSettings, RecipeHistory } from './types';
+import type { PageName, PantryItem, Recipe, MealPlanEntry, ShoppingItem, UserSettings, RecipeHistory, PlannerView } from './types';
 
 const LOGO_SRC = 'data:image/png;base64,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';
 
@@ -41,7 +42,15 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [page, setPage] = useState<PageName>('chef');
-  const { data: settings, save: saveSettings, loaded: settingsLoaded } = useStorage<UserSettings>('mealmate-settings', defaultSettings, false);
+  const { data: settings, save: saveSettings, loaded: settingsLoaded } = useUserSettings(user, defaultSettings);
+  const [toast, setToast] = useState<string | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2800);
+  }, []);
+
+  const plannerView: PlannerView = settings.plannerView ?? 'weekly';
+  const setPlannerView = (v: PlannerView) => saveSettings({ ...settings, plannerView: v });
   // Solo (localStorage) storage
   const { data: soloPantry, save: saveSoloPantry, loaded: pantryLoaded } = useStorage<PantryItem[]>('mealmate-pantry', [], true);
   const { data: soloFavorites, save: saveSoloFavorites } = useStorage<Recipe[]>('mealmate-favorites', [], false);
@@ -101,12 +110,16 @@ export default function App() {
     if (!favorites.find(f => f.id === recipe.id)) saveFavorites([...favorites, tagged]);
   };
   const removeFromFavorites = (id: string) => saveFavorites(favorites.filter(f => f.id !== id));
+  const updateFavorite = (updated: Recipe) => saveFavorites(favorites.map(f => f.id === updated.id ? { ...updated, addedBy: (f as any).addedBy } : f));
   const isFavorite = (id: string) => favorites.some(f => f.id === id);
-  const addToMealPlan = (entry: MealPlanEntry) => {
-    const tagged = { ...entry, addedBy: user?.uid };
-    saveMealPlan([...mealPlan, tagged]);
+  const addToMealPlan = (entries: MealPlanEntry | MealPlanEntry[]) => {
+    const arr = Array.isArray(entries) ? entries : [entries];
+    const tagged = arr.map(e => ({ ...e, addedBy: user?.uid }));
+    saveMealPlan([...mealPlan, ...tagged]);
   };
   const removeFromMealPlan = (id: string) => saveMealPlan(mealPlan.filter(e => e.id !== id));
+  const updateMealPlanEntry = (id: string, recipe: Recipe) =>
+    saveMealPlan(mealPlan.map(e => e.id === id ? { ...e, recipe } : e));
   const addToShoppingList = (items: ShoppingItem[]) => {
     const newItems = items.filter(i => !shoppingList.find(s => s.name.toLowerCase() === i.name.toLowerCase()));
     saveShoppingList([...shoppingList, ...newItems]);
@@ -183,12 +196,13 @@ export default function App() {
             isFavorite={isFavorite} onGoToSettings={() => setPage('settings')}
             savedRecipes={currentRecipes} onRecipesGenerated={onRecipesGenerated}
             onLoadFromHistory={onLoadFromHistory}
-            onClearRecipes={clearCurrentRecipes} recipeHistory={recipeHistory} />
+            onClearRecipes={clearCurrentRecipes} recipeHistory={recipeHistory}
+            showToast={showToast} />
         )}
         {page === 'pantry' && <Pantry pantry={pantry} savePantry={savePantry} loaded={pantryLoaded} />}
-        {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onAddToShoppingList={addToShoppingList} onAdd={addToMealPlan} getMemberColor={hh.getMemberColor} getMemberName={hh.getMemberName} inHousehold={inHousehold} />}
+        {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onUpdate={updateMealPlanEntry} onAddToShoppingList={addToShoppingList} onAdd={addToMealPlan} getMemberColor={hh.getMemberColor} getMemberName={hh.getMemberName} inHousehold={inHousehold} showToast={showToast} currentView={plannerView} onViewChange={setPlannerView} />}
         {page === 'shopping' && <ShoppingList list={shoppingList} saveList={saveShoppingList} />}
-        {page === 'favorites' && <Favorites favorites={favorites} onRemove={removeFromFavorites} onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList} onAddCustomRecipe={addToFavorites} settings={settings} currentUserId={user?.uid} inHousehold={inHousehold} getMemberName={hh.getMemberName} getMemberColor={hh.getMemberColor} />}
+        {page === 'favorites' && <Favorites favorites={favorites} onRemove={removeFromFavorites} onUpdate={updateFavorite} onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList} onAddCustomRecipe={addToFavorites} settings={settings} currentUserId={user?.uid} inHousehold={inHousehold} getMemberName={hh.getMemberName} getMemberColor={hh.getMemberColor} showToast={showToast} />}
         {page === 'settings' && <Settings settings={settings} saveSettings={saveSettings} user={user} onSignOut={handleSignOut} appName={`${getLastName()} Eats`} household={hh.household} onCreateHousehold={hh.createHousehold} onJoinHousehold={hh.joinHousehold} onLeaveHousehold={hh.leaveHousehold} onGoToUpdates={() => setPage('updates')} />}
         {page === 'updates' && <AppUpdates onBack={() => setPage('settings')} />}
       </main>
@@ -207,6 +221,15 @@ export default function App() {
           ))}
         </div>
       </nav>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
+          <div className="bg-foreground text-background text-xs font-medium px-4 py-2 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200 whitespace-nowrap">
+            ✓ {toast}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,13 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { PlanDialog } from '@/components/PlanDialog';
+import { RecipeEditDialog } from '@/components/RecipeEditDialog';
 import type { PantryItem, Recipe, RecipeHistory, MealPlanEntry, ShoppingItem, UserSettings, AIFilters, AIProvider } from '@/types';
 
 interface ChefAIProps {
   pantry: PantryItem[];
   settings: UserSettings;
   onAddFavorite: (recipe: Recipe) => void;
-  onAddToMealPlan: (entry: MealPlanEntry) => void;
+  onAddToMealPlan: (entries: MealPlanEntry | MealPlanEntry[]) => void;
   onAddToShoppingList: (items: ShoppingItem[]) => void;
   isFavorite: (id: string) => boolean;
   onGoToSettings: () => void;
@@ -22,6 +24,7 @@ interface ChefAIProps {
   onLoadFromHistory: (recipes: Recipe[]) => void;
   onClearRecipes: () => void;
   recipeHistory: RecipeHistory[];
+  showToast?: (msg: string) => void;
 }
 
 const defaultFilters: AIFilters = {
@@ -73,7 +76,7 @@ async function callAI(provider: AIProvider, apiKey: string, messages: any[], has
   return data.choices?.[0]?.message?.content || '';
 }
 
-export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings, savedRecipes, onRecipesGenerated, onLoadFromHistory, onClearRecipes, recipeHistory }: ChefAIProps) {
+export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings, savedRecipes, onRecipesGenerated, onLoadFromHistory, onClearRecipes, recipeHistory, showToast }: ChefAIProps) {
   const [filters, setFilters] = useState<AIFilters>({ ...defaultFilters, servings: settings.defaultServings });
   const [query, setQuery] = useState('');
   const [selectedProteins, setSelectedProteins] = useState<string[]>([]);
@@ -84,6 +87,8 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
+  const [editRecipe, setEditRecipe] = useState<Recipe | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
@@ -145,13 +150,15 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
     finally { setLoading(false); }
   };
 
-  const addRecipeToMealPlan = (recipe: Recipe, mealSlot: string) => {
-    onAddToMealPlan({ id: `mp-${Date.now()}`, date: new Date().toISOString().split('T')[0], mealType: mealSlot as any, recipe });
+  const addRecipeToMealPlan = (recipe: Recipe, _meal: string) => {
+    // Open plan dialog for date/recurrence selection
+    setPlanRecipe(recipe);
   };
   const addMissingToShoppingList = (recipe: Recipe) => {
     const pantryNames = pantry.map(p => p.name.toLowerCase());
     const missing = recipe.ingredients.filter(ing => !pantryNames.some(pn => ing.toLowerCase().includes(pn)));
     onAddToShoppingList(missing.map((ing, i) => ({ id: `shop-${Date.now()}-${i}`, name: ing, quantity: '', checked: false, category: 'Recipe Ingredients' })));
+    showToast?.(`${missing.length} missing ingredient${missing.length !== 1 ? 's' : ''} added to list`);
   };
 
   return (
@@ -244,8 +251,9 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
           {recipes.map(recipe => (
             <RecipeCard key={recipe.id} recipe={recipe} expanded={expandedRecipe === recipe.id}
               onToggle={() => setExpandedRecipe(expandedRecipe === recipe.id ? null : recipe.id)}
-              onFavorite={() => onAddFavorite(recipe)} isFavorite={isFavorite(recipe.id)}
-              onAddToMealPlan={addRecipeToMealPlan} onAddToShoppingList={() => addMissingToShoppingList(recipe)}
+              onFavorite={() => { onAddFavorite(recipe); showToast?.('Added to favorites'); }} isFavorite={isFavorite(recipe.id)}
+              onAddToMealPlan={(r) => setPlanRecipe(r)} onAddToShoppingList={() => addMissingToShoppingList(recipe)}
+              onEdit={() => setEditRecipe(recipe)}
               showImage={settings.aiImageGen ?? false} pexelsKey={settings.pexelsKey} />
           ))}
         </div>
@@ -289,6 +297,23 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
           <p className="text-xs mt-1 opacity-70">Your pantry items will be included automatically</p>
         </div>
       )}
+
+      <PlanDialog
+        recipe={planRecipe}
+        open={!!planRecipe}
+        onClose={() => setPlanRecipe(null)}
+        onAdd={(entries) => { onAddToMealPlan(entries); showToast?.('Added to meal plan'); }}
+      />
+
+      <RecipeEditDialog
+        recipe={editRecipe}
+        open={!!editRecipe}
+        onClose={() => setEditRecipe(null)}
+        onSave={(updated) => {
+          onRecipesGenerated(recipes.map(r => r.id === updated.id ? updated : r));
+          showToast?.('Recipe updated');
+        }}
+      />
     </div>
   );
 }
@@ -305,9 +330,9 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddToMealPlan, onAddToShoppingList, showImage, pexelsKey }: {
+function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddToMealPlan, onAddToShoppingList, onEdit, showImage, pexelsKey }: {
   recipe: Recipe; expanded: boolean; onToggle: () => void; onFavorite: () => void; isFavorite: boolean;
-  onAddToMealPlan: (recipe: Recipe, meal: string) => void; onAddToShoppingList: () => void; showImage: boolean; pexelsKey?: string;
+  onAddToMealPlan: (recipe: Recipe) => void; onAddToShoppingList: () => void; onEdit: () => void; showImage: boolean; pexelsKey?: string;
 }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [imgLoading, setImgLoading] = useState(false);
@@ -388,16 +413,9 @@ function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddT
             </div>
             <div className="flex flex-wrap gap-2 pt-1">
               <Button size="sm" variant={isFavorite ? 'secondary' : 'outline'} onClick={onFavorite} className="text-xs gap-1" disabled={isFavorite}>{isFavorite ? '✓ Saved' : '❤️ Favorite'}</Button>
-              <Dialog>
-                <DialogTrigger asChild><Button size="sm" variant="outline" className="text-xs gap-1">📅 Add to Plan</Button></DialogTrigger>
-                <DialogContent className="max-w-xs">
-                  <DialogHeader><DialogTitle className="font-display">Add to Meal Plan</DialogTitle></DialogHeader>
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    {['breakfast','lunch','dinner','snack'].map(meal => <Button key={meal} variant="outline" onClick={() => onAddToMealPlan(recipe, meal)} className="capitalize text-sm">{meal}</Button>)}
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button size="sm" variant="outline" onClick={() => onAddToMealPlan(recipe)} className="text-xs gap-1">📅 Add to Plan</Button>
               <Button size="sm" variant="outline" onClick={onAddToShoppingList} className="text-xs gap-1">🛒 Missing → List</Button>
+              <Button size="sm" variant="outline" onClick={onEdit} className="text-xs gap-1">✏️ Edit</Button>
             </div>
           </div>
         )}

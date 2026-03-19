@@ -7,12 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { PlanDialog } from '@/components/PlanDialog';
+import { RecipeEditDialog } from '@/components/RecipeEditDialog';
 import type { Recipe, MealPlanEntry, ShoppingItem, UserSettings, AIProvider } from '@/types';
 
 interface FavoritesProps {
   favorites: Recipe[];
   onRemove: (id: string) => void;
-  onAddToMealPlan: (entry: MealPlanEntry) => void;
+  onUpdate: (recipe: Recipe) => void;
+  onAddToMealPlan: (entries: MealPlanEntry | MealPlanEntry[]) => void;
   onAddToShoppingList: (items: ShoppingItem[]) => void;
   onAddCustomRecipe: (recipe: Recipe) => void;
   settings: UserSettings;
@@ -20,6 +23,7 @@ interface FavoritesProps {
   inHousehold?: boolean;
   getMemberName?: (uid?: string) => string;
   getMemberColor?: (uid?: string) => string;
+  showToast?: (msg: string) => void;
 }
 
 type FavFilter = 'all' | 'mine' | 'household';
@@ -61,7 +65,7 @@ const emptyForm = {
   cookTime: '', servings: '4', cuisine: '', difficulty: '', spiceLevel: '', mealType: '', cookingMethod: '', kidFriendly: false,
 };
 
-export function Favorites({ favorites, onRemove, onAddToMealPlan, onAddToShoppingList, onAddCustomRecipe, settings, currentUserId, inHousehold, getMemberName, getMemberColor }: FavoritesProps) {
+export function Favorites({ favorites, onRemove, onUpdate, onAddToMealPlan, onAddToShoppingList, onAddCustomRecipe, settings, currentUserId, inHousehold, getMemberName, getMemberColor, showToast }: FavoritesProps) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [favFilter, setFavFilter] = useState<FavFilter>('all');
@@ -70,6 +74,8 @@ export function Favorites({ favorites, onRemove, onAddToMealPlan, onAddToShoppin
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiPreview, setAiPreview] = useState<Recipe | null>(null);
+  const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
+  const [editRecipe, setEditRecipe] = useState<Recipe | null>(null);
 
   const hasAPIKey = settings.aiKeys.length > 0 && settings.activeAIProvider !== null;
   const activeKey = settings.aiKeys.find(k => k.provider === settings.activeAIProvider);
@@ -85,16 +91,12 @@ export function Favorites({ favorites, onRemove, onAddToMealPlan, onAddToShoppin
     return true;
   });
 
-  const addToMealPlan = (recipe: Recipe, meal: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    onAddToMealPlan({ id: `mp-${Date.now()}`, date: today, mealType: meal as any, recipe });
-  };
-
   const addToShoppingList = (recipe: Recipe) => {
     const items: ShoppingItem[] = recipe.ingredients.map((ing, i) => ({
       id: `shop-${Date.now()}-${i}`, name: ing, quantity: '', checked: false, category: 'Favorites',
     }));
     onAddToShoppingList(items);
+    showToast?.(`${items.length} ingredients added to shopping list`);
   };
 
   const handleAIComplete = async () => {
@@ -175,6 +177,7 @@ Return a single JSON object with ALL these fields filled in (use the provided va
     setForm(emptyForm);
     setAiPreview(null);
     setAiError(null);
+    showToast?.('Recipe saved to favorites');
   };
 
   const handleSaveManual = () => {
@@ -311,12 +314,9 @@ Return a single JSON object with ALL these fields filled in (use the provided va
                   </ol>
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
-                  <div className="flex gap-1">
-                    {['breakfast', 'lunch', 'dinner', 'snack'].map(m => (
-                      <Button key={m} variant="outline" size="sm" onClick={() => addToMealPlan(selected, m)} className="text-[10px] h-7 capitalize">📅 {m}</Button>
-                    ))}
-                  </div>
+                  <Button variant="outline" size="sm" onClick={() => { setPlanRecipe(selected); setSelected(null); }} className="text-xs h-7">📅 Add to Plan</Button>
                   <Button variant="outline" size="sm" onClick={() => addToShoppingList(selected)} className="text-xs h-7">🛒 Ingredients → List</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditRecipe(selected); setSelected(null); }} className="text-xs h-7">✏️ Edit</Button>
                   <Button variant="destructive" size="sm" onClick={() => { onRemove(selected.id); setSelected(null); }} className="text-xs h-7">Remove</Button>
                 </div>
               </div>
@@ -465,6 +465,20 @@ Return a single JSON object with ALL these fields filled in (use the provided va
           )}
         </DialogContent>
       </Dialog>
+
+      <PlanDialog
+        recipe={planRecipe}
+        open={!!planRecipe}
+        onClose={() => setPlanRecipe(null)}
+        onAdd={(entries) => { onAddToMealPlan(entries); showToast?.('Added to meal plan'); }}
+      />
+
+      <RecipeEditDialog
+        recipe={editRecipe}
+        open={!!editRecipe}
+        onClose={() => setEditRecipe(null)}
+        onSave={(updated) => { onUpdate(updated); showToast?.('Recipe updated'); }}
+      />
     </div>
   );
 }

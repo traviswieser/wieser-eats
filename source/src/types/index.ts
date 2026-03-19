@@ -63,6 +63,7 @@ export interface UserSettings {
   activeAIProvider: AIProvider | null;
   aiImageGen: boolean;
   pexelsKey: string;
+  plannerView?: PlannerView;
 }
 
 export interface AIFilters {
@@ -76,6 +77,8 @@ export interface AIFilters {
 }
 
 export type PageName = 'chef' | 'pantry' | 'mealplan' | 'shopping' | 'favorites' | 'settings' | 'updates';
+
+export type PlannerView = 'weekly' | 'next7' | 'next3' | 'month';
 
 export interface RecipeHistory {
   recipes: Recipe[];

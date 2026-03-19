@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -245,7 +245,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
               onToggle={() => setExpandedRecipe(expandedRecipe === recipe.id ? null : recipe.id)}
               onFavorite={() => onAddFavorite(recipe)} isFavorite={isFavorite(recipe.id)}
               onAddToMealPlan={addRecipeToMealPlan} onAddToShoppingList={() => addMissingToShoppingList(recipe)}
-              showImage={settings.aiImageGen ?? false} />
+              showImage={settings.aiImageGen ?? false} pexelsKey={settings.pexelsKey} />
           ))}
         </div>
       )}
@@ -304,22 +304,36 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddToMealPlan, onAddToShoppingList, showImage }: {
+function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddToMealPlan, onAddToShoppingList, showImage, pexelsKey }: {
   recipe: Recipe; expanded: boolean; onToggle: () => void; onFavorite: () => void; isFavorite: boolean;
-  onAddToMealPlan: (recipe: Recipe, meal: string) => void; onAddToShoppingList: () => void; showImage: boolean;
+  onAddToMealPlan: (recipe: Recipe, meal: string) => void; onAddToShoppingList: () => void; showImage: boolean; pexelsKey?: string;
 }) {
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const [imgError, setImgError] = useState(false);
-  const imageUrl = showImage && !imgError ? `https://image.pollinations.ai/prompt/${encodeURIComponent(`${recipe.name}, ${recipe.cuisine || 'delicious'} food, plated beautifully, top-down food photography`)}?width=400&height=240&nologo=true&seed=${recipe.id.charCodeAt(7) || 42}` : null;
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [imgLoading, setImgLoading] = useState(false);
+
+  useEffect(() => {
+    if (!showImage || !pexelsKey || imgUrl) return;
+    setImgLoading(true);
+    const searchTerm = recipe.name.replace(/[^a-zA-Z\s]/g, '').trim();
+    fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(searchTerm + ' food')}&per_page=1&orientation=landscape`, {
+      headers: { Authorization: pexelsKey },
+    })
+      .then(r => r.json())
+      .then(data => {
+        const photo = data.photos?.[0];
+        if (photo) setImgUrl(photo.src?.medium || photo.src?.small || null);
+      })
+      .catch(() => {})
+      .finally(() => setImgLoading(false));
+  }, [showImage, pexelsKey, recipe.name]);
+
   return (
     <Card className="border-border/50 bg-card/60 overflow-hidden transition-all hover:border-primary/30">
       <CardContent className="p-0">
-        {imageUrl && (
+        {showImage && pexelsKey && (imgUrl || imgLoading) && (
           <div className="w-full h-36 bg-secondary/30 overflow-hidden relative">
-            {!imgLoaded && <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground animate-pulse">Generating image...</div>}
-            <img src={imageUrl} alt={recipe.name} className={`w-full h-full object-cover transition-opacity ${imgLoaded ? 'opacity-100' : 'opacity-0'}`} loading="lazy"
-              onLoad={() => setImgLoaded(true)}
-              onError={() => setImgError(true)} />
+            {imgLoading && <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground animate-pulse">Loading photo...</div>}
+            {imgUrl && <img src={imgUrl} alt={recipe.name} className="w-full h-full object-cover" loading="lazy" />}
           </div>
         )}
         <button onClick={onToggle} className="w-full text-left p-4 pb-3">

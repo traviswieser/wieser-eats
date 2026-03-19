@@ -40,9 +40,10 @@ interface SettingsProps {
   household?: any; onCreateHousehold?: (name: string) => Promise<void>;
   onJoinHousehold?: (code: string) => Promise<string | null>;
   onLeaveHousehold?: () => Promise<void>;
+  onGoToUpdates?: () => void;
 }
 
-export function Settings({ settings, saveSettings, user, onSignOut, appName, household, onCreateHousehold, onJoinHousehold, onLeaveHousehold }: SettingsProps) {
+export function Settings({ settings, saveSettings, user, onSignOut, appName, household, onCreateHousehold, onJoinHousehold, onLeaveHousehold, onGoToUpdates }: SettingsProps) {
   const [customAllergy, setCustomAllergy] = useState('');
   const [newKeyProvider, setNewKeyProvider] = useState<AIProvider>('grok');
   const [newKeyValue, setNewKeyValue] = useState('');
@@ -303,9 +304,19 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
           </div>
           <Separator className="opacity-50" />
           <div className="flex items-center justify-between">
-            <div><Label className="text-sm font-medium">AI Meal Images</Label><p className="text-xs text-muted-foreground">Generate photos for recipes (free via Pollinations.ai)</p></div>
+            <div><Label className="text-sm font-medium">AI Meal Images</Label><p className="text-xs text-muted-foreground">Show food photos on recipe cards (free via Pexels)</p></div>
             <Switch checked={settings.aiImageGen ?? false} onCheckedChange={checked => saveSettings({ ...settings, aiImageGen: checked })} />
           </div>
+          {(settings.aiImageGen ?? false) && (
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-medium text-muted-foreground">Pexels API Key (free)</label>
+              <Input type="password" placeholder="Paste your Pexels API key..." value={settings.pexelsKey || ''} onChange={e => saveSettings({ ...settings, pexelsKey: e.target.value })} className="h-8 text-xs bg-background/50 font-mono" />
+              <div className="text-[11px] text-muted-foreground space-y-0.5">
+                <p>1. Go to <a href="https://www.pexels.com/api/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">pexels.com/api</a> and create a free account</p>
+                <p>2. Click "Your API Key", fill out the form, and copy your key</p>
+              </div>
+            </div>
+          )}
           <Separator className="opacity-50" />
           <div>
             <Label className="text-sm font-medium">Default Servings</Label>
@@ -365,7 +376,8 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
           <img src={SETTINGS_LOGO} alt="App logo" className="w-10 h-10 object-contain mx-auto mb-1" />
           <p className="font-display font-bold text-sm"><span className="text-primary">{(appName || 'Wieser Eats').split(' ')[0]}</span> {(appName || 'Wieser Eats').split(' ').slice(1).join(' ')}</p>
           <p className="text-xs text-muted-foreground mt-0.5">AI-powered meal planning for the whole household</p>
-          <p className="text-[10px] text-muted-foreground mt-2 opacity-50">Shared pantry · Meal planner · Smart shopping lists</p>
+          <button onClick={onGoToUpdates} className="text-xs text-primary mt-2 hover:underline font-medium">📋 App Updates &amp; Changelog →</button>
+          <p className="text-[10px] text-muted-foreground mt-2 opacity-50">v1.5.0</p>
         </CardContent>
       </Card>
     </div>

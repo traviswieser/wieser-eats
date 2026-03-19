@@ -62,6 +62,7 @@ export interface UserSettings {
   aiKeys: AIKeyEntry[];
   activeAIProvider: AIProvider | null;
   aiImageGen: boolean;
+  pexelsKey: string;
 }
 
 export interface AIFilters {
@@ -74,7 +75,7 @@ export interface AIFilters {
   spiceLevel: string;
 }
 
-export type PageName = 'chef' | 'pantry' | 'mealplan' | 'shopping' | 'favorites' | 'settings';
+export type PageName = 'chef' | 'pantry' | 'mealplan' | 'shopping' | 'favorites' | 'settings' | 'updates';
 
 export interface RecipeHistory {
   recipes: Recipe[];

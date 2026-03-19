@@ -10,6 +10,21 @@ import {
   sendPasswordResetEmail,
   type User,
 } from 'firebase/auth';
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  onSnapshot,
+  serverTimestamp,
+  writeBatch,
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyB6Tcr6hpz0NkzWsgUXYW0JZbiGMkSRosw",
@@ -23,10 +38,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
 export {
   auth,
+  db,
   googleProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
@@ -35,5 +52,17 @@ export {
   onAuthStateChanged,
   sendPasswordResetEmail,
   GoogleAuthProvider,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  onSnapshot,
+  serverTimestamp,
+  writeBatch,
 };
 export type { User };

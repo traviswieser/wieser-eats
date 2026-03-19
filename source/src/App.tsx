@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStorage } from './hooks/useStorage';
 import { auth, onAuthStateChanged, signOut, type User } from './firebase';
+import { useHousehold } from './hooks/useHousehold';
 import { AuthScreen } from './components/pages/AuthScreen';
 import { ChefAI } from './components/pages/ChefAI';
 import { Pantry } from './components/pages/Pantry';
@@ -39,12 +40,28 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [page, setPage] = useState<PageName>('chef');
   const { data: settings, save: saveSettings, loaded: settingsLoaded } = useStorage<UserSettings>('mealmate-settings', defaultSettings, false);
-  const { data: pantry, save: savePantry, loaded: pantryLoaded } = useStorage<PantryItem[]>('mealmate-pantry', [], true);
-  const { data: favorites, save: saveFavorites } = useStorage<Recipe[]>('mealmate-favorites', [], false);
-  const { data: mealPlan, save: saveMealPlan } = useStorage<MealPlanEntry[]>('mealmate-mealplan', [], true);
-  const { data: shoppingList, save: saveShoppingList } = useStorage<ShoppingItem[]>('mealmate-shopping', [], true);
+  // Solo (localStorage) storage
+  const { data: soloPantry, save: saveSoloPantry, loaded: pantryLoaded } = useStorage<PantryItem[]>('mealmate-pantry', [], true);
+  const { data: soloFavorites, save: saveSoloFavorites } = useStorage<Recipe[]>('mealmate-favorites', [], false);
+  const { data: soloMealPlan, save: saveSoloMealPlan } = useStorage<MealPlanEntry[]>('mealmate-mealplan', [], true);
+  const { data: soloShoppingList, save: saveSoloShoppingList } = useStorage<ShoppingItem[]>('mealmate-shopping', [], true);
   const { data: currentRecipes, save: saveCurrentRecipes } = useStorage<Recipe[]>('mealmate-current-recipes', [], false);
   const { data: recipeHistory, save: saveRecipeHistory } = useStorage<RecipeHistory[]>('mealmate-recipe-history', [], false);
+
+  // Household (Firestore) — active when user joins a household
+  const hh = useHousehold(user);
+  const inHousehold = !!hh.householdId;
+
+  // Bridge: use Firestore data when in household, localStorage when solo
+  const pantry = inHousehold ? hh.shared.pantry : soloPantry;
+  const favorites = inHousehold ? hh.shared.favorites : soloFavorites;
+  const mealPlan = inHousehold ? hh.shared.mealPlan : soloMealPlan;
+  const shoppingList = inHousehold ? hh.shared.shopping : soloShoppingList;
+
+  const savePantry = inHousehold ? hh.savePantry : saveSoloPantry;
+  const saveFavorites = inHousehold ? hh.saveFavorites : saveSoloFavorites;
+  const saveMealPlan = inHousehold ? hh.saveMealPlan : saveSoloMealPlan;
+  const saveShoppingList = inHousehold ? hh.saveShopping : saveSoloShoppingList;
 
   // Get user's last name for dynamic title
   const getLastName = () => {
@@ -78,11 +95,15 @@ export default function App() {
   };
 
   const addToFavorites = (recipe: Recipe) => {
-    if (!favorites.find(f => f.id === recipe.id)) saveFavorites([...favorites, recipe]);
+    const tagged = { ...recipe, addedBy: user?.uid };
+    if (!favorites.find(f => f.id === recipe.id)) saveFavorites([...favorites, tagged]);
   };
   const removeFromFavorites = (id: string) => saveFavorites(favorites.filter(f => f.id !== id));
   const isFavorite = (id: string) => favorites.some(f => f.id === id);
-  const addToMealPlan = (entry: MealPlanEntry) => saveMealPlan([...mealPlan, entry]);
+  const addToMealPlan = (entry: MealPlanEntry) => {
+    const tagged = { ...entry, addedBy: user?.uid };
+    saveMealPlan([...mealPlan, tagged]);
+  };
   const removeFromMealPlan = (id: string) => saveMealPlan(mealPlan.filter(e => e.id !== id));
   const addToShoppingList = (items: ShoppingItem[]) => {
     const newItems = items.filter(i => !shoppingList.find(s => s.name.toLowerCase() === i.name.toLowerCase()));
@@ -121,7 +142,7 @@ export default function App() {
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button onClick={() => setPage('chef')} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+          <button onClick={() => setPage('chef')} className="flex items-center gap-2.5">
             <img src={LOGO_SRC} alt="Home" className="w-9 h-9 object-contain" />
             <h1 className="font-display text-xl font-bold tracking-tight"><span className="text-primary">{getLastName()}</span> Eats</h1>
           </button>
@@ -157,10 +178,10 @@ export default function App() {
             onClearRecipes={clearCurrentRecipes} recipeHistory={recipeHistory} />
         )}
         {page === 'pantry' && <Pantry pantry={pantry} savePantry={savePantry} loaded={pantryLoaded} />}
-        {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onAddToShoppingList={addToShoppingList} onAdd={addToMealPlan} />}
+        {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onAddToShoppingList={addToShoppingList} onAdd={addToMealPlan} getMemberColor={hh.getMemberColor} getMemberName={hh.getMemberName} inHousehold={inHousehold} />}
         {page === 'shopping' && <ShoppingList list={shoppingList} saveList={saveShoppingList} />}
-        {page === 'favorites' && <Favorites favorites={favorites} onRemove={removeFromFavorites} onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList} />}
-        {page === 'settings' && <Settings settings={settings} saveSettings={saveSettings} user={user} onSignOut={handleSignOut} appName={`${getLastName()} Eats`} />}
+        {page === 'favorites' && <Favorites favorites={favorites} onRemove={removeFromFavorites} onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList} currentUserId={user?.uid} inHousehold={inHousehold} getMemberName={hh.getMemberName} getMemberColor={hh.getMemberColor} />}
+        {page === 'settings' && <Settings settings={settings} saveSettings={saveSettings} user={user} onSignOut={handleSignOut} appName={`${getLastName()} Eats`} household={hh.household} onCreateHousehold={hh.createHousehold} onJoinHousehold={hh.joinHousehold} onLeaveHousehold={hh.leaveHousehold} />}
       </main>
 
       {/* Bottom Navigation */}

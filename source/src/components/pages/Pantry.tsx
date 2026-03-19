@@ -26,6 +26,7 @@ export function Pantry({ pantry, savePantry, loaded }: PantryProps) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [detectedItems, setDetectedItems] = useState<{ name: string; quantity: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   const addItem = () => {
     if (!name.trim()) return;
@@ -173,15 +174,15 @@ export function Pantry({ pantry, savePantry, loaded }: PantryProps) {
           <Separator className="opacity-50" />
           <div>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fileRef.current?.click()}
-              className="text-xs gap-1.5 w-full"
-              disabled={photoLoading}
-            >
-              {photoLoading ? '🔍 Scanning photo...' : '📸 Scan Photo to Add Items'}
-            </Button>
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoUpload} />
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="text-xs gap-1.5 flex-1" disabled={photoLoading}>
+                {photoLoading ? '🔍 Scanning...' : '🖼️ Scan from Gallery'}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => cameraRef.current?.click()} className="text-xs gap-1.5 flex-1" disabled={photoLoading}>
+                📸 Take Photo
+              </Button>
+            </div>
           </div>
 
           {/* Detected Items */}

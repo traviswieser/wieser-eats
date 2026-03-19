@@ -84,6 +84,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   const hasAPIKey = settings.aiKeys.length > 0 && settings.activeAIProvider !== null;
   const activeKey = settings.aiKeys.find(k => k.provider === settings.activeAIProvider);
@@ -188,11 +189,13 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
           <Textarea placeholder="e.g. I have chicken thighs and want something quick" value={query} onChange={e => setQuery(e.target.value)} className="min-h-[80px] bg-background/50 resize-none border-border/50 text-sm" />
           <div className="flex items-center gap-2">
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="text-xs gap-1.5">📸 Upload Photo</Button>
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhoto} />
+            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="text-xs gap-1.5">🖼️ Gallery</Button>
+            <Button variant="outline" size="sm" onClick={() => cameraRef.current?.click()} className="text-xs gap-1.5">📸 Camera</Button>
             {photoPreview && (
               <div className="flex items-center gap-2">
                 <img src={photoPreview} alt="upload" className="w-10 h-10 rounded-lg object-cover border border-border" />
-                <button onClick={() => { setPhotoPreview(null); if (fileRef.current) fileRef.current.value = ''; }} className="text-xs text-destructive hover:underline">Remove</button>
+                <button onClick={() => { setPhotoPreview(null); if (fileRef.current) fileRef.current.value = ''; if (cameraRef.current) cameraRef.current.value = ''; }} className="text-xs text-destructive hover:underline">Remove</button>
               </div>
             )}
           </div>
@@ -305,14 +308,18 @@ function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddT
   recipe: Recipe; expanded: boolean; onToggle: () => void; onFavorite: () => void; isFavorite: boolean;
   onAddToMealPlan: (recipe: Recipe, meal: string) => void; onAddToShoppingList: () => void; showImage: boolean;
 }) {
-  const imageUrl = showImage ? `https://image.pollinations.ai/prompt/${encodeURIComponent(`Professional food photography of ${recipe.name}, ${recipe.cuisine} cuisine, plated beautifully, warm lighting, top-down view`)}?width=400&height=240&nologo=true&seed=${Math.abs(recipe.id.split('').reduce((a,c)=>a+c.charCodeAt(0),0))}` : null;
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const imageUrl = showImage && !imgError ? `https://image.pollinations.ai/prompt/${encodeURIComponent(`${recipe.name}, ${recipe.cuisine || 'delicious'} food, plated beautifully, top-down food photography`)}?width=400&height=240&nologo=true&seed=${recipe.id.charCodeAt(7) || 42}` : null;
   return (
     <Card className="border-border/50 bg-card/60 overflow-hidden transition-all hover:border-primary/30">
       <CardContent className="p-0">
         {imageUrl && (
-          <div className="w-full h-36 bg-secondary/30 overflow-hidden">
-            <img src={imageUrl} alt={recipe.name} className="w-full h-full object-cover" loading="lazy"
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <div className="w-full h-36 bg-secondary/30 overflow-hidden relative">
+            {!imgLoaded && <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground animate-pulse">Generating image...</div>}
+            <img src={imageUrl} alt={recipe.name} className={`w-full h-full object-cover transition-opacity ${imgLoaded ? 'opacity-100' : 'opacity-0'}`} loading="lazy"
+              onLoad={() => setImgLoaded(true)}
+              onError={() => setImgError(true)} />
           </div>
         )}
         <button onClick={onToggle} className="w-full text-left p-4 pb-3">

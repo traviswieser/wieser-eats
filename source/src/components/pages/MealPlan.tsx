@@ -73,6 +73,9 @@ interface MealPlanProps {
   onRemove: (id: string) => void;
   onAddToShoppingList: (items: ShoppingItem[]) => void;
   onAdd: (entry: MealPlanEntry) => void;
+  getMemberColor?: (uid?: string) => string;
+  getMemberName?: (uid?: string) => string;
+  inHousehold?: boolean;
 }
 
 const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -97,7 +100,7 @@ function getWeekDays(offset: number = 0): { date: string; label: string; day: st
   return days;
 }
 
-export function MealPlan({ mealPlan, onRemove, onAddToShoppingList, onAdd }: MealPlanProps) {
+export function MealPlan({ mealPlan, onRemove, onAddToShoppingList, onAdd, getMemberColor, getMemberName, inHousehold }: MealPlanProps) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<MealPlanEntry | null>(null);
   const [quickAdd, setQuickAdd] = useState<{ date: string; meal: string } | null>(null);
@@ -229,9 +232,14 @@ export function MealPlan({ mealPlan, onRemove, onAddToShoppingList, onAdd }: Mea
                       }`}
                     >
                       {entries.length > 0 ? entries.map(entry => (
-                        <div key={entry.id} className="p-0.5">
-                          <p className="font-medium truncate leading-tight">{entry.recipe.name}</p>
-                          <p className="text-muted-foreground opacity-75">{entry.recipe.cookTime}</p>
+                        <div key={entry.id} className="p-0.5 flex items-start gap-1">
+                          {inHousehold && (entry as any).addedBy && (
+                            <span className="w-2 h-2 rounded-full mt-1 shrink-0" style={{ background: getMemberColor?.((entry as any).addedBy) || '#888' }} title={getMemberName?.((entry as any).addedBy)} />
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-medium truncate leading-tight">{entry.recipe.name}</p>
+                            <p className="text-muted-foreground opacity-75">{entry.recipe.cookTime}</p>
+                          </div>
                         </div>
                       )) : (
                         <div className="flex items-center justify-center h-full opacity-0 hover:opacity-40 transition-opacity">

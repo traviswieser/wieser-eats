@@ -34,15 +34,25 @@ const AI_PROVIDERS: { id: AIProvider; name: string; icon: string; free: boolean;
     link: 'https://aistudio.google.com/apikey' },
 ];
 
-interface SettingsProps { settings: UserSettings; saveSettings: (s: UserSettings) => void; user?: any; onSignOut?: () => void; appName?: string; }
+interface SettingsProps {
+  settings: UserSettings; saveSettings: (s: UserSettings) => void;
+  user?: any; onSignOut?: () => void; appName?: string;
+  household?: any; onCreateHousehold?: (name: string) => Promise<void>;
+  onJoinHousehold?: (code: string) => Promise<string | null>;
+  onLeaveHousehold?: () => Promise<void>;
+}
 
-export function Settings({ settings, saveSettings, user, onSignOut, appName }: SettingsProps) {
+export function Settings({ settings, saveSettings, user, onSignOut, appName, household, onCreateHousehold, onJoinHousehold, onLeaveHousehold }: SettingsProps) {
   const [customAllergy, setCustomAllergy] = useState('');
   const [newKeyProvider, setNewKeyProvider] = useState<AIProvider>('grok');
   const [newKeyValue, setNewKeyValue] = useState('');
   const [newKeyLabel, setNewKeyLabel] = useState('');
   const [showAddKey, setShowAddKey] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<AIProvider | null>(null);
+  const [hhName, setHhName] = useState('');
+  const [hhJoinCode, setHhJoinCode] = useState('');
+  const [hhError, setHhError] = useState<string | null>(null);
+  const [hhLoading, setHhLoading] = useState(false);
 
   const toggleAllergy = (allergy: string) => {
     const lower = allergy.toLowerCase();
@@ -158,6 +168,78 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName }: S
                 <Button size="sm" variant="ghost" onClick={() => { setShowAddKey(false); setExpandedProvider(null); }} className="text-xs">Cancel</Button>
               </div>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Household */}
+      <Card className="border-border/50 bg-card/50" id="household">
+        <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display flex items-center gap-2">🏠 Household</CardTitle></CardHeader>
+        <CardContent className="px-4 pb-4 space-y-3">
+          {household ? (
+            <>
+              <div className="p-3 rounded-lg bg-secondary/30 border border-border/50">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold">{household.name}</p>
+                  <Badge variant="outline" className="text-[10px] font-mono">{household.code}</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground mb-2">Share this code for others to join</p>
+                <div className="space-y-1">
+                  {Object.values(household.members || {}).map((m: any) => (
+                    <div key={m.uid} className="flex items-center gap-2 text-xs">
+                      <span className="w-3 h-3 rounded-full shrink-0" style={{ background: m.color }} />
+                      {m.photoURL ? (
+                        <img src={m.photoURL} className="w-5 h-5 rounded-full" referrerPolicy="no-referrer" alt="" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold">{(m.name || '?')[0]}</div>
+                      )}
+                      <span className="truncate">{m.name}</span>
+                      {m.uid === household.createdBy && <Badge variant="secondary" className="text-[8px] h-4">Owner</Badge>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => {
+                navigator.clipboard.writeText(household.code);
+                alert('Invite code copied!');
+              }} className="w-full text-xs">📋 Copy Invite Code</Button>
+              <Button variant="outline" size="sm" onClick={async () => {
+                if (confirm('Leave this household? Your shared data will stay with the household.')) {
+                  await onLeaveHousehold?.();
+                }
+              }} className="w-full text-xs text-destructive hover:text-destructive">Leave Household</Button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">Share pantry, meals, shopping lists, and favorites with your household.</p>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Create a new household</label>
+                  <div className="flex gap-2">
+                    <Input placeholder="Household name (e.g. Wieser Family)" value={hhName} onChange={e => setHhName(e.target.value)} className="h-8 text-xs bg-background/50" />
+                    <Button size="sm" disabled={!hhName.trim() || hhLoading} className="h-8 text-xs bg-primary text-primary-foreground" onClick={async () => {
+                      setHhLoading(true); setHhError(null);
+                      try { await onCreateHousehold?.(hhName.trim()); setHhName(''); } catch { setHhError('Failed to create'); }
+                      setHhLoading(false);
+                    }}>Create</Button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3"><Separator className="flex-1 opacity-50" /><span className="text-[10px] text-muted-foreground">or</span><Separator className="flex-1 opacity-50" /></div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Join with invite code</label>
+                  <div className="flex gap-2">
+                    <Input placeholder="Enter code..." value={hhJoinCode} onChange={e => setHhJoinCode(e.target.value.toUpperCase())} className="h-8 text-xs bg-background/50 font-mono uppercase" maxLength={6} />
+                    <Button size="sm" disabled={hhJoinCode.length < 4 || hhLoading} variant="outline" className="h-8 text-xs" onClick={async () => {
+                      setHhLoading(true); setHhError(null);
+                      const err = await onJoinHousehold?.(hhJoinCode);
+                      if (err) setHhError(err); else setHhJoinCode('');
+                      setHhLoading(false);
+                    }}>Join</Button>
+                  </div>
+                </div>
+                {hhError && <p className="text-xs text-destructive">{hhError}</p>}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

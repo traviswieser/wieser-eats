@@ -12,17 +12,29 @@ interface FavoritesProps {
   onRemove: (id: string) => void;
   onAddToMealPlan: (entry: MealPlanEntry) => void;
   onAddToShoppingList: (items: ShoppingItem[]) => void;
+  currentUserId?: string;
+  inHousehold?: boolean;
+  getMemberName?: (uid?: string) => string;
+  getMemberColor?: (uid?: string) => string;
 }
 
-export function Favorites({ favorites, onRemove, onAddToMealPlan, onAddToShoppingList }: FavoritesProps) {
+type FavFilter = 'all' | 'mine' | 'household';
+
+export function Favorites({ favorites, onRemove, onAddToMealPlan, onAddToShoppingList, currentUserId, inHousehold, getMemberName, getMemberColor }: FavoritesProps) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Recipe | null>(null);
+  const [favFilter, setFavFilter] = useState<FavFilter>('all');
 
-  const filtered = favorites.filter(r =>
-    !search || r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.cuisine?.toLowerCase().includes(search.toLowerCase()) ||
-    r.mealType?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = favorites.filter(r => {
+    const matchesSearch = !search || r.name.toLowerCase().includes(search.toLowerCase()) ||
+      r.cuisine?.toLowerCase().includes(search.toLowerCase()) ||
+      r.mealType?.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    if (!inHousehold || favFilter === 'all') return true;
+    if (favFilter === 'mine') return (r as any).addedBy === currentUserId;
+    if (favFilter === 'household') return (r as any).addedBy && (r as any).addedBy !== currentUserId;
+    return true;
+  });
 
   const addToMealPlan = (recipe: Recipe, meal: string) => {
     const today = new Date().toISOString().split('T')[0];
@@ -59,6 +71,18 @@ export function Favorites({ favorites, onRemove, onAddToMealPlan, onAddToShoppin
           onChange={e => setSearch(e.target.value)}
           className="h-9 text-sm bg-card/50"
         />
+      )}
+
+      {inHousehold && favorites.length > 0 && (
+        <div className="flex gap-1">
+          {(['all', 'mine', 'household'] as FavFilter[]).map(f => (
+            <Button key={f} variant={favFilter === f ? 'default' : 'outline'} size="sm"
+              onClick={() => setFavFilter(f)}
+              className={`text-xs flex-1 h-8 capitalize ${favFilter === f ? 'bg-primary text-primary-foreground' : ''}`}>
+              {f === 'all' ? 'All' : f === 'mine' ? 'Mine' : 'Household'}
+            </Button>
+          ))}
+        </div>
       )}
 
       <div className="grid gap-2 sm:grid-cols-2">

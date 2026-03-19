@@ -2,6 +2,8 @@
 
 > **For Claude:** Read this file at the start of every session. Do not ask Travis to re-explain the project. Clone the repo and start coding.
 
+> **⚠️ CRITICAL: Always push to `dev` only. NEVER push to `main` unless Travis explicitly says "deploy" or "deploy to main". No exceptions.**
+
 ---
 
 ## 🚀 Session Startup (Do This Every Time)
@@ -22,7 +24,8 @@
    cp bundle.html ../index.html
    cd ..
    ```
-5. Push to `dev` for testing. Travis will say "deploy" when ready for `main`.
+5. **Push to `dev` only.** Travis will say "deploy" when ready for `main`.
+6. Always clean the GitHub token from the remote URL after pushing.
 
 ### Deploy to production:
 ```

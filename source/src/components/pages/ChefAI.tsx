@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import type { PantryItem, Recipe, MealPlanEntry, ShoppingItem, UserSettings, AIFilters, AIProvider } from '@/types';
+import type { PantryItem, Recipe, RecipeHistory, MealPlanEntry, ShoppingItem, UserSettings, AIFilters, AIProvider } from '@/types';
 
 interface ChefAIProps {
   pantry: PantryItem[];
@@ -17,6 +17,10 @@ interface ChefAIProps {
   onAddToShoppingList: (items: ShoppingItem[]) => void;
   isFavorite: (id: string) => boolean;
   onGoToSettings: () => void;
+  savedRecipes: Recipe[];
+  onRecipesGenerated: (recipes: Recipe[]) => void;
+  onClearRecipes: () => void;
+  recipeHistory: RecipeHistory[];
 }
 
 const defaultFilters: AIFilters = {
@@ -68,16 +72,17 @@ async function callAI(provider: AIProvider, apiKey: string, messages: any[], has
   return data.choices?.[0]?.message?.content || '';
 }
 
-export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings }: ChefAIProps) {
+export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings, savedRecipes, onRecipesGenerated, onClearRecipes, recipeHistory }: ChefAIProps) {
   const [filters, setFilters] = useState<AIFilters>({ ...defaultFilters, servings: settings.defaultServings });
   const [query, setQuery] = useState('');
   const [selectedProteins, setSelectedProteins] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const recipes = savedRecipes;
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const hasAPIKey = settings.aiKeys.length > 0 && settings.activeAIProvider !== null;
@@ -113,7 +118,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
 
   const askAI = async () => {
     if (!activeKey) return;
-    setLoading(true); setError(null); setRecipes([]);
+    setLoading(true); setError(null); onClearRecipes();
     try {
       const hasImage = !!photoPreview;
       let content: any;
@@ -129,10 +134,11 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error('Could not parse recipe response');
       const parsed = JSON.parse(jsonMatch[0]);
-      setRecipes(parsed.map((r: any, i: number) => ({
+      const newRecipes = parsed.map((r: any, i: number) => ({
         ...r, id: `recipe-${Date.now()}-${i}`,
         macros: r.macros || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
-      })));
+      }));
+      onRecipesGenerated(newRecipes);
     } catch (err: any) { setError(err.message || 'Something went wrong.'); }
     finally { setLoading(false); }
   };
@@ -227,7 +233,10 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
 
       {recipes.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-display font-bold text-lg">Here's what I'd make 👇</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-display font-bold text-lg">Here's what I'd make 👇</h3>
+            <Button variant="ghost" size="sm" onClick={onClearRecipes} className="text-xs text-muted-foreground h-7">Clear</Button>
+          </div>
           {recipes.map(recipe => (
             <RecipeCard key={recipe.id} recipe={recipe} expanded={expandedRecipe === recipe.id}
               onToggle={() => setExpandedRecipe(expandedRecipe === recipe.id ? null : recipe.id)}
@@ -238,7 +247,38 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
         </div>
       )}
 
-      {!loading && recipes.length === 0 && !error && hasAPIKey && (
+      {/* Recipe History */}
+      {!loading && recipes.length === 0 && recipeHistory.length > 0 && hasAPIKey && (
+        <div className="space-y-3">
+          <button onClick={() => setShowHistory(!showHistory)} className="w-full text-left">
+            <div className="flex items-center justify-between">
+              <h3 className="font-display font-semibold text-sm text-muted-foreground">Recent Recipes ({recipeHistory.length})</h3>
+              <span className="text-xs text-muted-foreground">{showHistory ? '▾' : '▸'}</span>
+            </div>
+          </button>
+          {showHistory && recipeHistory.map((batch, bi) => (
+            <div key={batch.timestamp} className="space-y-2">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {new Date(batch.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              </p>
+              {batch.recipes.map(recipe => (
+                <Card key={recipe.id} className="border-border/30 bg-card/30 cursor-pointer hover:border-primary/20 transition-colors"
+                  onClick={() => onRecipesGenerated(batch.recipes)}>
+                  <CardContent className="p-3">
+                    <p className="text-sm font-medium">{recipe.name}</p>
+                    <div className="flex gap-1.5 mt-1">
+                      <Badge variant="secondary" className="text-[10px] font-normal">⏱ {recipe.cookTime}</Badge>
+                      <Badge variant="secondary" className="text-[10px] font-normal">🍽 {recipe.cuisine}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && recipes.length === 0 && recipeHistory.length === 0 && !error && hasAPIKey && (
         <div className="text-center py-8 text-muted-foreground">
           <p className="text-4xl mb-3">🧑‍🍳</p>
           <p className="text-sm">Describe what you have, upload a photo, or just hit the button!</p>
@@ -265,7 +305,7 @@ function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddT
   recipe: Recipe; expanded: boolean; onToggle: () => void; onFavorite: () => void; isFavorite: boolean;
   onAddToMealPlan: (recipe: Recipe, meal: string) => void; onAddToShoppingList: () => void; showImage: boolean;
 }) {
-  const imageUrl = showImage ? `https://image.pollinations.ai/prompt/${encodeURIComponent(`Professional food photography of ${recipe.name}, ${recipe.cuisine} cuisine, plated beautifully, warm lighting, top-down view`)}/width/400/height/240?nologo=true&seed=${recipe.id.replace(/\D/g,'').slice(0,6)}` : null;
+  const imageUrl = showImage ? `https://image.pollinations.ai/prompt/${encodeURIComponent(`Professional food photography of ${recipe.name}, ${recipe.cuisine} cuisine, plated beautifully, warm lighting, top-down view`)}?width=400&height=240&nologo=true&seed=${Math.abs(recipe.id.split('').reduce((a,c)=>a+c.charCodeAt(0),0))}` : null;
   return (
     <Card className="border-border/50 bg-card/60 overflow-hidden transition-all hover:border-primary/30">
       <CardContent className="p-0">

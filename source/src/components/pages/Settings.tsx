@@ -34,9 +34,9 @@ const AI_PROVIDERS: { id: AIProvider; name: string; icon: string; free: boolean;
     link: 'https://aistudio.google.com/apikey' },
 ];
 
-interface SettingsProps { settings: UserSettings; saveSettings: (s: UserSettings) => void; user?: any; onSignOut?: () => void; }
+interface SettingsProps { settings: UserSettings; saveSettings: (s: UserSettings) => void; user?: any; onSignOut?: () => void; appName?: string; }
 
-export function Settings({ settings, saveSettings, user, onSignOut }: SettingsProps) {
+export function Settings({ settings, saveSettings, user, onSignOut, appName }: SettingsProps) {
   const [customAllergy, setCustomAllergy] = useState('');
   const [newKeyProvider, setNewKeyProvider] = useState<AIProvider>('grok');
   const [newKeyValue, setNewKeyValue] = useState('');
@@ -233,6 +233,25 @@ export function Settings({ settings, saveSettings, user, onSignOut }: SettingsPr
         </CardContent>
       </Card>
 
+      {/* Share */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display">Share App</CardTitle></CardHeader>
+        <CardContent className="px-4 pb-4 space-y-2">
+          <p className="text-xs text-muted-foreground">Invite friends and family to use {appName || 'Wieser Eats'}!</p>
+          <Button variant="outline" size="sm" className="w-full text-xs gap-2" onClick={() => {
+            const url = window.location.origin;
+            const text = `Check out ${appName || 'Wieser Eats'} — an AI-powered meal planning app! ${url}`;
+            if (navigator.share) {
+              navigator.share({ title: appName || 'Wieser Eats', text, url }).catch(() => {});
+            } else {
+              navigator.clipboard.writeText(text).then(() => alert('Link copied to clipboard!'));
+            }
+          }}>
+            📤 Share {appName || 'Wieser Eats'}
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Account */}
       {user && (
         <Card className="border-border/50 bg-card/50">
@@ -261,8 +280,8 @@ export function Settings({ settings, saveSettings, user, onSignOut }: SettingsPr
       {/* About */}
       <Card className="border-border/50 bg-card/30">
         <CardContent className="p-4 text-center">
-          <img src={SETTINGS_LOGO} alt="Wieser Eats" className="w-10 h-10 object-contain mx-auto mb-1" />
-          <p className="font-display font-bold text-sm"><span className="text-primary">Wieser</span> Eats</p>
+          <img src={SETTINGS_LOGO} alt="App logo" className="w-10 h-10 object-contain mx-auto mb-1" />
+          <p className="font-display font-bold text-sm"><span className="text-primary">{(appName || 'Wieser Eats').split(' ')[0]}</span> {(appName || 'Wieser Eats').split(' ').slice(1).join(' ')}</p>
           <p className="text-xs text-muted-foreground mt-0.5">AI-powered meal planning for the whole household</p>
           <p className="text-[10px] text-muted-foreground mt-2 opacity-50">Shared pantry · Meal planner · Smart shopping lists</p>
         </CardContent>

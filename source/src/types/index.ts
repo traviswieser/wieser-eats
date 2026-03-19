@@ -75,3 +75,8 @@ export interface AIFilters {
 }
 
 export type PageName = 'chef' | 'pantry' | 'mealplan' | 'shopping' | 'favorites' | 'settings';
+
+export interface RecipeHistory {
+  recipes: Recipe[];
+  timestamp: number;
+}

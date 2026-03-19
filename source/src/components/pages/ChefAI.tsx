@@ -28,16 +28,16 @@ const CUISINES = ['Any','American','Mexican','Italian','Chinese','Japanese','Ind
 const METHODS = ['Any','Stovetop','Oven/Bake','Grill','Air Fryer','Slow Cooker','Instant Pot','No-Cook','Sous Vide','Smoker'];
 const PROTEINS = ['Chicken','Beef','Ground Beef','Pork','Salmon','Shrimp','Turkey','Tofu','Eggs'];
 
-const PROVIDER_LABELS: Record<AIProvider, string> = { grok: 'Grok', gemini: 'Gemini', claude: 'Claude', openai: 'OpenAI' };
+const PROVIDER_LABELS: Record<AIProvider, string> = { grok: 'Groq', gemini: 'Gemini', claude: 'Claude', openai: 'OpenAI' };
 
 async function callAI(provider: AIProvider, apiKey: string, messages: any[], hasImage: boolean): Promise<string> {
   let url = '', headers: Record<string,string> = {}, body: any = {};
   const systemPrompt = 'You are a professional chef assistant. Return ONLY valid JSON (no markdown, no backticks, no extra text).';
 
   if (provider === 'grok') {
-    url = 'https://api.x.ai/v1/chat/completions';
+    url = 'https://api.groq.com/openai/v1/chat/completions';
     headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
-    body = { model: 'grok-3-mini', messages: [{ role: 'system', content: systemPrompt }, ...messages], max_tokens: 4000 };
+    body = { model: 'llama-3.3-70b-versatile', messages: [{ role: 'system', content: systemPrompt }, ...messages], max_tokens: 4000 };
   } else if (provider === 'openai') {
     url = 'https://api.openai.com/v1/chat/completions';
     headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };

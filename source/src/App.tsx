@@ -136,7 +136,7 @@ export default function App() {
             isFavorite={isFavorite} onGoToSettings={() => setPage('settings')} />
         )}
         {page === 'pantry' && <Pantry pantry={pantry} savePantry={savePantry} loaded={pantryLoaded} />}
-        {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onAddToShoppingList={addToShoppingList} />}
+        {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onAddToShoppingList={addToShoppingList} onAdd={addToMealPlan} />}
         {page === 'shopping' && <ShoppingList list={shoppingList} saveList={saveShoppingList} />}
         {page === 'favorites' && <Favorites favorites={favorites} onRemove={removeFromFavorites} onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList} />}
         {page === 'settings' && <Settings settings={settings} saveSettings={saveSettings} user={user} onSignOut={handleSignOut} />}

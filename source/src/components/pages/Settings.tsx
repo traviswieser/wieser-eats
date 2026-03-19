@@ -20,9 +20,9 @@ const DIET_TYPES = [
 ];
 
 const AI_PROVIDERS: { id: AIProvider; name: string; icon: string; free: boolean; color: string; instructions: string[]; link: string }[] = [
-  { id: 'grok', name: 'Grok', icon: '⚡', free: true, color: 'text-blue-400',
-    instructions: ['Go to console.x.ai', 'Sign in with your X (Twitter) account', 'Click "Create API Key"', 'Copy your API key and paste it below'],
-    link: 'https://console.x.ai/' },
+  { id: 'grok', name: 'Groq', icon: '⚡', free: true, color: 'text-blue-400',
+    instructions: ['Go to console.groq.com/keys', 'Create an account or sign in with Google/GitHub', 'Click "Create API Key"', 'Name your key, copy it, and paste it below'],
+    link: 'https://console.groq.com/keys' },
   { id: 'claude', name: 'Claude', icon: '💲', free: false, color: 'text-orange-400',
     instructions: ['Go to console.anthropic.com', 'Create an account or sign in', 'Go to "API Keys" in settings', 'Click "Create Key", name it, and copy the key'],
     link: 'https://console.anthropic.com/settings/keys' },

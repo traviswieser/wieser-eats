@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { MealPlanEntry, ShoppingItem } from '@/types';
@@ -71,6 +72,7 @@ interface MealPlanProps {
   mealPlan: MealPlanEntry[];
   onRemove: (id: string) => void;
   onAddToShoppingList: (items: ShoppingItem[]) => void;
+  onAdd: (entry: MealPlanEntry) => void;
 }
 
 const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
@@ -95,9 +97,12 @@ function getWeekDays(offset: number = 0): { date: string; label: string; day: st
   return days;
 }
 
-export function MealPlan({ mealPlan, onRemove, onAddToShoppingList }: MealPlanProps) {
+export function MealPlan({ mealPlan, onRemove, onAddToShoppingList, onAdd }: MealPlanProps) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<MealPlanEntry | null>(null);
+  const [quickAdd, setQuickAdd] = useState<{ date: string; meal: string } | null>(null);
+  const [quickName, setQuickName] = useState('');
+  const [quickTime, setQuickTime] = useState('30 min');
   const days = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
 
   const getEntries = (date: string, meal: string) => {
@@ -112,6 +117,25 @@ export function MealPlan({ mealPlan, onRemove, onAddToShoppingList }: MealPlanPr
   };
 
   const weekEntries = mealPlan.filter(e => days.some(d => d.date === e.date));
+
+  const handleQuickAdd = () => {
+    if (!quickAdd || !quickName.trim()) return;
+    const entry: MealPlanEntry = {
+      id: `mp-${Date.now()}`,
+      date: quickAdd.date,
+      mealType: quickAdd.meal as any,
+      recipe: {
+        id: `quick-${Date.now()}`, name: quickName.trim(), description: 'Manually added meal',
+        ingredients: [], instructions: [], cookTime: quickTime, difficulty: 'Easy',
+        mealType: quickAdd.meal, cuisine: '', cookingMethod: '', servings: 4,
+        spiceLevel: 'Mild', macros: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+        kidFriendly: true,
+      },
+    };
+    onAdd(entry);
+    setQuickAdd(null);
+    setQuickName('');
+  };
 
   const addAllIngredientsToShoppingList = () => {
     const allIngredients = weekEntries.flatMap(e => e.recipe.ingredients);
@@ -195,25 +219,26 @@ export function MealPlan({ mealPlan, onRemove, onAddToShoppingList }: MealPlanPr
                 {days.map(d => {
                   const entries = getEntries(d.date, meal);
                   return (
-                    <div
+                    <button
                       key={`${d.date}-${meal}`}
-                      className={`min-h-[52px] rounded-lg border text-[10px] p-1 ${
+                      onClick={() => entries.length > 0 ? setSelectedEntry(entries[0]) : setQuickAdd({ date: d.date, meal })}
+                      className={`min-h-[52px] rounded-lg border text-[10px] p-1 text-left transition-colors ${
                         entries.length > 0
-                          ? 'border-primary/30 bg-primary/5'
-                          : 'border-border/30 bg-card/20'
+                          ? 'border-primary/30 bg-primary/5 hover:bg-primary/10'
+                          : 'border-border/30 bg-card/20 hover:border-primary/20 hover:bg-primary/5'
                       }`}
                     >
-                      {entries.map(entry => (
-                        <button
-                          key={entry.id}
-                          onClick={() => setSelectedEntry(entry)}
-                          className="w-full text-left p-0.5 rounded hover:bg-primary/10 transition-colors"
-                        >
+                      {entries.length > 0 ? entries.map(entry => (
+                        <div key={entry.id} className="p-0.5">
                           <p className="font-medium truncate leading-tight">{entry.recipe.name}</p>
                           <p className="text-muted-foreground opacity-75">{entry.recipe.cookTime}</p>
-                        </button>
-                      ))}
-                    </div>
+                        </div>
+                      )) : (
+                        <div className="flex items-center justify-center h-full opacity-0 hover:opacity-40 transition-opacity">
+                          <span className="text-xs text-muted-foreground">+</span>
+                        </div>
+                      )}
+                    </button>
                   );
                 })}
               </div>
@@ -311,11 +336,47 @@ export function MealPlan({ mealPlan, onRemove, onAddToShoppingList }: MealPlanPr
         </DialogContent>
       </Dialog>
 
+      {/* Quick Add Dialog */}
+      <Dialog open={!!quickAdd} onOpenChange={open => { if (!open) setQuickAdd(null); }}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">
+              Add {quickAdd ? MEAL_ICONS[quickAdd.meal] : ''} {quickAdd?.meal} meal
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">What are you making?</label>
+              <Input
+                placeholder="e.g. Chicken stir fry"
+                value={quickName}
+                onChange={e => setQuickName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
+                className="h-9 text-sm bg-background/50"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Cook time</label>
+              <Input
+                placeholder="e.g. 30 min"
+                value={quickTime}
+                onChange={e => setQuickTime(e.target.value)}
+                className="h-9 text-sm bg-background/50"
+              />
+            </div>
+            <Button onClick={handleQuickAdd} disabled={!quickName.trim()} className="w-full bg-primary text-primary-foreground text-xs font-semibold">
+              Add to Plan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {mealPlan.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <p className="text-4xl mb-3">📅</p>
           <p className="text-sm">No meals planned yet</p>
-          <p className="text-xs mt-1 opacity-70">Use Chef AI to find recipes, then add them here!</p>
+          <p className="text-xs mt-1 opacity-70">Tap any empty cell above to add a meal, or use Chef AI!</p>
         </div>
       )}
     </div>

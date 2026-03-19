@@ -201,6 +201,16 @@ export function AuthScreen({ logoSrc }: AuthScreenProps) {
             </div>
           </CardContent>
         </Card>
+
+        {/* Install as App Instructions */}
+        <div className="text-center space-y-2 pt-2 pb-6">
+          <p className="text-xs font-semibold text-muted-foreground">Install as an App</p>
+          <div className="text-[11px] text-muted-foreground/70 space-y-1 leading-relaxed">
+            <p><span className="font-medium text-muted-foreground">Android:</span> Tap the menu (⋮) in Chrome → "Add to Home screen" or "Install app"</p>
+            <p><span className="font-medium text-muted-foreground">iPhone/iPad:</span> Tap the Share button (↑) in Safari → "Add to Home Screen"</p>
+          </div>
+          <p className="text-[10px] text-muted-foreground/50">Full-screen app experience with an icon on your home screen</p>
+        </div>
       </div>
     </div>
   );

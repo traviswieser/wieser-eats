@@ -44,7 +44,7 @@ function buildEdamamUrl(query: string, proteins: string[], filters: AIFilters, s
     app_key: settings.edamamKey,
     random: 'true',
     from: '0',
-    to: '9',
+    to: '14',
   });
 
   const terms = [query, ...proteins].filter(Boolean).join(' ').trim();
@@ -240,6 +240,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
   const recipes = savedRecipes;
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [instructionsLoading, setInstructionsLoading] = useState<Set<string>>(new Set());
+  const [fnDebug, setFnDebug] = useState<Record<string, string>>({});
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [editRecipe, setEditRecipe] = useState<Recipe | null>(null);
 
@@ -298,14 +299,22 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
           const fnRes = await fetch(`/.netlify/functions/fetch-recipe?url=${encodeURIComponent(recipe.sourceUrl)}`);
           if (fnRes.ok) {
             const fnData = await fnRes.json();
+            // Always capture debug info so we can show it in the UI
+            if (fnData.debug) {
+              setFnDebug(prev => ({ ...prev, [recipeId]: fnData.debug }));
+            }
             if (fnData.found && fnData.instructions?.length > 0) {
               onRecipesGenerated(recipes.map(r =>
                 r.id === recipeId ? { ...r, instructions: fnData.instructions, instructionSource: 'real' as const } : r
               ));
               return;
             }
+          } else {
+            setFnDebug(prev => ({ ...prev, [recipeId]: `Function HTTP ${fnRes.status}` }));
           }
-        } catch { /* fallthrough to AI */ }
+        } catch (fnErr: any) {
+          setFnDebug(prev => ({ ...prev, [recipeId]: `Function error: ${fnErr.message || 'failed'}` }));
+        }
       }
 
       // 2. AI fallback — generate from ingredient list
@@ -497,6 +506,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
               pexelsKey={settings.pexelsKey}
               instructionsLoading={instructionsLoading.has(recipe.id)}
               hasAIKey={!!activeKey}
+              fnDebug={fnDebug[recipe.id]}
             />
           ))}
           <p className="text-[10px] text-muted-foreground text-center opacity-60 pt-1">
@@ -579,10 +589,10 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddToMealPlan, onAddToShoppingList, onEdit, showImage, pexelsKey, instructionsLoading, hasAIKey }: {
+function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddToMealPlan, onAddToShoppingList, onEdit, showImage, pexelsKey, instructionsLoading, hasAIKey, fnDebug }: {
   recipe: Recipe; expanded: boolean; onToggle: () => void; onFavorite: () => void; isFavorite: boolean;
   onAddToMealPlan: (r: Recipe) => void; onAddToShoppingList: () => void; onEdit: () => void;
-  showImage: boolean; pexelsKey?: string; instructionsLoading: boolean; hasAIKey: boolean;
+  showImage: boolean; pexelsKey?: string; instructionsLoading: boolean; hasAIKey: boolean; fnDebug?: string;
 }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [imgLoading, setImgLoading] = useState(false);
@@ -698,6 +708,12 @@ function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddT
                     </a>
                   )}
                 </div>
+              )}
+              {/* Debug info — shown whenever a function attempt was made */}
+              {fnDebug && (
+                <p className="text-[10px] text-muted-foreground/50 mt-1 font-mono leading-relaxed">
+                  🔧 {fnDebug}
+                </p>
               )}
             </div>
 

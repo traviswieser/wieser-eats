@@ -182,7 +182,7 @@ export default function App() {
     saveCurrentRecipes(recipes);
     // Add to history, keep last 12 batches
     const entry: RecipeHistory = { recipes, timestamp: Date.now() };
-    const updated = [entry, ...recipeHistory].slice(0, 12);
+    const updated = [entry, ...recipeHistory].slice(0, 10);
     saveRecipeHistory(updated);
   };
 

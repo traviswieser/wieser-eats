@@ -263,7 +263,9 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
     setLoading(true); setError(null); onClearRecipes();
     try {
       const url = buildEdamamUrl(query, selectedProteins, filters, settings);
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: { 'Edamam-Account-User': settings.edamamAppId },
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || `Edamam error ${res.status}`);

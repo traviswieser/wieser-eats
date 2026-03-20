@@ -173,6 +173,61 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
         </CardContent>
       </Card>
 
+      {/* Edamam Recipe Search */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display flex items-center gap-2">🥗 Recipe Search (Edamam)</CardTitle></CardHeader>
+        <CardContent className="px-4 pb-4 space-y-3">
+          <p className="text-xs text-muted-foreground">Edamam powers real recipe search with 2.3M+ recipes. Free — sign up at <a href="https://developer.edamam.com/edamam-recipe-api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">developer.edamam.com</a></p>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">App ID</label>
+            <Input
+              type="text"
+              placeholder="e.g. a1b2c3d4"
+              value={settings.edamamAppId || ''}
+              onChange={e => saveSettings({ ...settings, edamamAppId: e.target.value })}
+              className="h-8 text-xs bg-background/50 font-mono"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">API Key</label>
+            <Input
+              type="password"
+              placeholder="Paste your Edamam API key..."
+              value={settings.edamamKey || ''}
+              onChange={e => saveSettings({ ...settings, edamamKey: e.target.value })}
+              className="h-8 text-xs bg-background/50 font-mono"
+            />
+          </div>
+          <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1">
+            <p>1. Go to <a href="https://developer.edamam.com/edamam-recipe-api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">developer.edamam.com/edamam-recipe-api</a></p>
+            <p>2. Click "Start Free" and create an account</p>
+            <p>3. Go to Dashboard → Applications → Recipe Search API</p>
+            <p>4. Copy your <strong>App ID</strong> and <strong>App Key</strong> above</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Meal Images */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display flex items-center gap-2">🖼️ AI Meal Images</CardTitle></CardHeader>
+        <CardContent className="px-4 pb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div><Label className="text-sm font-medium">Show Food Photos</Label><p className="text-xs text-muted-foreground">Show food photos on recipe cards (free via Pexels)</p></div>
+            <Switch checked={settings.aiImageGen ?? false} onCheckedChange={checked => saveSettings({ ...settings, aiImageGen: checked })} />
+          </div>
+          {(settings.aiImageGen ?? false) && (
+            <div className="space-y-1.5 pt-1">
+              <label className="text-xs font-medium text-muted-foreground">Pexels API Key (free)</label>
+              <Input type="password" placeholder="Paste your Pexels API key..." value={settings.pexelsKey || ''} onChange={e => saveSettings({ ...settings, pexelsKey: e.target.value })} className="h-8 text-xs bg-background/50 font-mono" />
+              <div className="text-[11px] text-muted-foreground space-y-0.5">
+                <p>1. Go to <a href="https://www.pexels.com/api/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">pexels.com/api</a> and create a free account</p>
+                <p>2. Click "Your API Key", fill out the form, and copy your key</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Household */}
       <Card className="border-border/50 bg-card/50" id="household">
         <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display flex items-center gap-2">🏠 Household</CardTitle></CardHeader>
@@ -303,21 +358,6 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
             <Switch checked={settings.kidFriendly} onCheckedChange={checked => saveSettings({ ...settings, kidFriendly: checked })} />
           </div>
           <Separator className="opacity-50" />
-          <div className="flex items-center justify-between">
-            <div><Label className="text-sm font-medium">AI Meal Images</Label><p className="text-xs text-muted-foreground">Show food photos on recipe cards (free via Pexels)</p></div>
-            <Switch checked={settings.aiImageGen ?? false} onCheckedChange={checked => saveSettings({ ...settings, aiImageGen: checked })} />
-          </div>
-          {(settings.aiImageGen ?? false) && (
-            <div className="space-y-1.5 pt-1">
-              <label className="text-xs font-medium text-muted-foreground">Pexels API Key (free)</label>
-              <Input type="password" placeholder="Paste your Pexels API key..." value={settings.pexelsKey || ''} onChange={e => saveSettings({ ...settings, pexelsKey: e.target.value })} className="h-8 text-xs bg-background/50 font-mono" />
-              <div className="text-[11px] text-muted-foreground space-y-0.5">
-                <p>1. Go to <a href="https://www.pexels.com/api/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">pexels.com/api</a> and create a free account</p>
-                <p>2. Click "Your API Key", fill out the form, and copy your key</p>
-              </div>
-            </div>
-          )}
-          <Separator className="opacity-50" />
           <div>
             <Label className="text-sm font-medium">Default Servings</Label>
             <p className="text-xs text-muted-foreground mb-2">Starting serving size for recipe suggestions</p>
@@ -333,7 +373,7 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
           <p className="text-xs text-muted-foreground">Invite friends and family to use {appName || 'Wieser Eats'}!</p>
           <Button variant="outline" size="sm" className="w-full text-xs gap-2" onClick={() => {
             const url = window.location.origin;
-            const text = `Check out ${appName || 'Wieser Eats'} — an AI-powered meal planning app! ${url}`;
+            const text = `Check out ${appName || 'Wieser Eats'} — an AI-powered meal planning app!`;
             if (navigator.share) {
               navigator.share({ title: appName || 'Wieser Eats', text, url }).catch(() => {});
             } else {
@@ -377,7 +417,7 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
           <p className="font-display font-bold text-sm"><span className="text-primary">{(appName || 'Wieser Eats').split(' ')[0]}</span> {(appName || 'Wieser Eats').split(' ').slice(1).join(' ')}</p>
           <p className="text-xs text-muted-foreground mt-0.5">AI-powered meal planning for the whole household</p>
           <button onClick={onGoToUpdates} className="text-xs text-primary mt-2 hover:underline font-medium">📋 App Updates &amp; Changelog →</button>
-          <p className="text-[10px] text-muted-foreground mt-2 opacity-50">v1.5.0</p>
+          <p className="text-[10px] text-muted-foreground mt-2 opacity-50">v1.7.0</p>
         </CardContent>
       </Card>
     </div>

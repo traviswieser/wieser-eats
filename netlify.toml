@@ -10,9 +10,20 @@
   command = "echo 'Using pre-built index.html — no build needed'"
   publish = "."
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "FIREBASE_API_KEY,FIREBASE_APP_ID,FIREBASE_AUTH_DOMAIN,FIREBASE_MEASUREMENT_ID,FIREBASE_MESSAGING_SENDER_ID,FIREBASE_PROJECT_ID,FIREBASE_STORAGE_BUCKET"
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+# Explicitly pass through Netlify function requests (must come before SPA catch-all)
+[[redirects]]
+  from = "/.netlify/*"
+  to = "/.netlify/:splat"
+  status = 200
+  force = true
 
 # SPA routing — all paths serve index.html
 [[redirects]]

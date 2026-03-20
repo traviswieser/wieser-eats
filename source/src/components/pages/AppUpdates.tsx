@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -9,7 +11,40 @@ interface Update {
   tag?: 'new' | 'fix' | 'improvement';
 }
 
-const UPDATES: Update[] = [
+export const LATEST_VERSION = '1.7.0';
+
+export const UPDATES: Update[] = [
+  {
+    version: '1.7.0',
+    date: 'Mar 2026',
+    title: 'Real Recipes from Edamam',
+    tag: 'new',
+    notes: [
+      'Replaced AI-generated recipes with 2.3M+ real recipes via Edamam',
+      'Instructions fetched automatically from the original recipe source page',
+      'AI fallback generates instructions when the source page is unavailable',
+      'Original recipe link always shown so you can visit the source',
+      'Photo import: scan a recipe card or cookbook page to add it instantly',
+      'Real nutrition data per serving pulled directly from Edamam',
+      'Edamam App ID + API Key setup in Settings → Recipe Search (free)',
+    ],
+  },
+  {
+    version: '1.6.0',
+    date: 'Mar 20, 2026',
+    title: 'Recipe Import, Variety & Navigation Improvements',
+    tag: 'new',
+    notes: [
+      'Import a recipe from a photo — snap or upload a recipe card, cookbook page, or screenshot and the AI extracts it instantly',
+      'Recipe variety — same prompt/filters now produces fresh suggestions every time',
+      'Back button on Android now navigates between pages instead of closing the app',
+      'App Updates page now scrolls to the top when opened',
+      'Share button no longer includes the URL twice',
+      'One-time update notification popup when the app is updated',
+      'AI Meal Images setting moved directly below AI API Keys in Settings',
+      'Sharper app icon on tablets and large-screen devices',
+    ],
+  },
   {
     version: '1.5.0',
     date: 'Mar 19, 2026',
@@ -95,6 +130,10 @@ const TAG_STYLES: Record<string, string> = {
 };
 
 export function AppUpdates({ onBack }: { onBack: () => void }) {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, []);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">

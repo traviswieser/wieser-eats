@@ -28,6 +28,8 @@ export interface Recipe {
   spiceLevel: string;
   macros: MacroInfo;
   kidFriendly: boolean;
+  sourceUrl?: string;        // Original recipe URL from Edamam
+  instructionSource?: 'real' | 'ai'; // How instructions were obtained
 }
 
 export interface MealPlanEntry {
@@ -63,6 +65,8 @@ export interface UserSettings {
   activeAIProvider: AIProvider | null;
   aiImageGen: boolean;
   pexelsKey: string;
+  edamamAppId: string;
+  edamamKey: string;
   plannerView?: PlannerView;
 }
 

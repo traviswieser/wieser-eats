@@ -105,8 +105,9 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
     reader.readAsDataURL(file);
   };
 
-  const buildPrompt = () => {
+  const buildPrompt = (seed?: number) => {
     let p = 'Generate exactly 3 recipe suggestions as a JSON array. Each recipe object must have: "name" (string), "description" (1-2 sentences), "ingredients" (array of strings with quantities), "instructions" (array of step strings), "cookTime" (e.g. "30 min"), "difficulty" (Easy/Medium/Hard), "mealType", "cuisine", "cookingMethod", "servings" (number), "spiceLevel" (Mild/Medium/Hot/Extra Hot), "macros" (object: calories, protein, carbs, fat, fiber as numbers per serving), "kidFriendly" (boolean).\n\n';
+    p += `Variation seed: ${seed ?? Math.floor(Math.random() * 1000000)} — use this to ensure unique results.\n`;
     if (query) p += `User request: ${query}\n`;
     if (selectedProteins.length > 0) p += `Main proteins: ${selectedProteins.join(', ')}\n`;
     if (pantry.length > 0) p += `Available pantry: ${pantry.map(i => `${i.name} (${i.quantity})`).join(', ')}\nUse pantry items when possible.\n`;
@@ -123,19 +124,42 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
     return p;
   };
 
+  const [importMode, setImportMode] = useState(false);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const importCameraRef = useRef<HTMLInputElement>(null);
+
+  const handleImportPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setPhotoPreview(ev.target?.result as string);
+      setImportMode(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const askAI = async () => {
     if (!activeKey) return;
+    const seed = Math.floor(Math.random() * 1000000);
     setLoading(true); setError(null); onClearRecipes();
     try {
       const hasImage = !!photoPreview;
       let content: any;
-      if (photoPreview) {
+      if (importMode && photoPreview) {
+        // Import recipe from photo mode
+        const importPrompt = `Look at this image of a recipe (it may be a recipe card, cookbook page, handwritten note, or screenshot). Extract the complete recipe from the image and return it as a JSON array with exactly 1 recipe object. The recipe object must have: "name" (string), "description" (1-2 sentences), "ingredients" (array of strings with quantities), "instructions" (array of step strings), "cookTime" (e.g. "30 min"), "difficulty" (Easy/Medium/Hard), "mealType", "cuisine", "cookingMethod", "servings" (number, default 4 if not specified), "spiceLevel" (Mild/Medium/Hot/Extra Hot, default Mild if not specified), "macros" (object: calories, protein, carbs, fat, fiber as numbers per serving — estimate if not shown), "kidFriendly" (boolean). Return ONLY the JSON array, nothing else.`;
         content = [
           { type: 'image_url', image_url: { url: photoPreview } },
-          { type: 'text', text: 'Identify all visible food ingredients. Then, ' + buildPrompt() },
+          { type: 'text', text: importPrompt },
+        ];
+      } else if (photoPreview) {
+        content = [
+          { type: 'image_url', image_url: { url: photoPreview } },
+          { type: 'text', text: 'Identify all visible food ingredients. Then, ' + buildPrompt(seed) },
         ];
       } else {
-        content = buildPrompt();
+        content = buildPrompt(seed);
       }
       const text = await callAI(activeKey.provider, activeKey.key, [{ role: 'user', content }], hasImage);
       const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -146,6 +170,12 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
         macros: r.macros || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
       }));
       onRecipesGenerated(newRecipes);
+      if (importMode) {
+        setImportMode(false);
+        setPhotoPreview(null);
+        if (importFileRef.current) importFileRef.current.value = '';
+        if (importCameraRef.current) importCameraRef.current.value = '';
+      }
     } catch (err: any) { setError(err.message || 'Something went wrong.'); }
     finally { setLoading(false); }
   };
@@ -198,15 +228,27 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
           <div className="flex items-center gap-2">
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhoto} />
+            <input ref={importFileRef} type="file" accept="image/*" className="hidden" onChange={handleImportPhoto} />
+            <input ref={importCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImportPhoto} />
             <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} className="text-xs gap-1.5">🖼️ Gallery</Button>
             <Button variant="outline" size="sm" onClick={() => cameraRef.current?.click()} className="text-xs gap-1.5">📸 Camera</Button>
+            <Button variant="outline" size="sm" onClick={() => importFileRef.current?.click()} className="text-xs gap-1.5" title="Import a recipe from a photo">📄 Import Recipe</Button>
             {photoPreview && (
               <div className="flex items-center gap-2">
-                <img src={photoPreview} alt="upload" className="w-10 h-10 rounded-lg object-cover border border-border" />
-                <button onClick={() => { setPhotoPreview(null); if (fileRef.current) fileRef.current.value = ''; if (cameraRef.current) cameraRef.current.value = ''; }} className="text-xs text-destructive hover:underline">Remove</button>
+                <div className="relative">
+                  <img src={photoPreview} alt="upload" className="w-10 h-10 rounded-lg object-cover border border-border" />
+                  {importMode && <span className="absolute -top-1 -right-1 text-[8px] bg-primary text-primary-foreground rounded-full px-1">Import</span>}
+                </div>
+                <button onClick={() => { setPhotoPreview(null); setImportMode(false); if (fileRef.current) fileRef.current.value = ''; if (cameraRef.current) cameraRef.current.value = ''; if (importFileRef.current) importFileRef.current.value = ''; if (importCameraRef.current) importCameraRef.current.value = ''; }} className="text-xs text-destructive hover:underline">Remove</button>
               </div>
             )}
           </div>
+          {importMode && photoPreview && (
+            <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+              <p className="text-xs text-primary font-medium">📄 Import mode — AI will extract the recipe from your photo</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Hit the button below to import it. Filters are ignored in import mode.</p>
+            </div>
+          )}
           <div>
             <p className="text-xs text-muted-foreground mb-2 font-medium">Quick protein select:</p>
             <div className="flex flex-wrap gap-1.5">
@@ -235,7 +277,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
             </div>
           )}
           <Button onClick={askAI} disabled={loading || !hasAPIKey} className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-display font-semibold text-sm tracking-wide">
-            {loading ? <span className="flex items-center gap-2"><span className="animate-spin">⏳</span> Finding recipes...</span> : "🍳 What Should I Cook?"}
+            {loading ? <span className="flex items-center gap-2"><span className="animate-spin">⏳</span> {importMode ? 'Importing recipe...' : 'Finding recipes...'}</span> : importMode ? '📄 Import This Recipe' : '🍳 What Should I Cook?'}
           </Button>
         </CardContent>
       </Card>

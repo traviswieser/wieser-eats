@@ -27,6 +27,8 @@ const defaultSettings: UserSettings = {
   activeAIProvider: null,
   aiImageGen: false,
   pexelsKey: '',
+  edamamAppId: '',
+  edamamKey: '',
 };
 
 const navItems: { id: PageName; label: string; icon: string }[] = [

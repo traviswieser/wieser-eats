@@ -173,6 +173,40 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
         </CardContent>
       </Card>
 
+      {/* Edamam Recipe Search */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display flex items-center gap-2">🥗 Recipe Search (Edamam)</CardTitle></CardHeader>
+        <CardContent className="px-4 pb-4 space-y-3">
+          <p className="text-xs text-muted-foreground">Edamam powers real recipe search with 2.3M+ recipes. Free — sign up at <a href="https://developer.edamam.com/edamam-recipe-api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">developer.edamam.com</a></p>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">App ID</label>
+            <Input
+              type="text"
+              placeholder="e.g. a1b2c3d4"
+              value={settings.edamamAppId || ''}
+              onChange={e => saveSettings({ ...settings, edamamAppId: e.target.value })}
+              className="h-8 text-xs bg-background/50 font-mono"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">API Key</label>
+            <Input
+              type="password"
+              placeholder="Paste your Edamam API key..."
+              value={settings.edamamKey || ''}
+              onChange={e => saveSettings({ ...settings, edamamKey: e.target.value })}
+              className="h-8 text-xs bg-background/50 font-mono"
+            />
+          </div>
+          <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1">
+            <p>1. Go to <a href="https://developer.edamam.com/edamam-recipe-api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">developer.edamam.com/edamam-recipe-api</a></p>
+            <p>2. Click "Start Free" and create an account</p>
+            <p>3. Go to Dashboard → Applications → Recipe Search API</p>
+            <p>4. Copy your <strong>App ID</strong> and <strong>App Key</strong> above</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* AI Meal Images */}
       <Card className="border-border/50 bg-card/50">
         <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display flex items-center gap-2">🖼️ AI Meal Images</CardTitle></CardHeader>
@@ -383,7 +417,7 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
           <p className="font-display font-bold text-sm"><span className="text-primary">{(appName || 'Wieser Eats').split(' ')[0]}</span> {(appName || 'Wieser Eats').split(' ').slice(1).join(' ')}</p>
           <p className="text-xs text-muted-foreground mt-0.5">AI-powered meal planning for the whole household</p>
           <button onClick={onGoToUpdates} className="text-xs text-primary mt-2 hover:underline font-medium">📋 App Updates &amp; Changelog →</button>
-          <p className="text-[10px] text-muted-foreground mt-2 opacity-50">v1.6.0</p>
+          <p className="text-[10px] text-muted-foreground mt-2 opacity-50">v1.7.0</p>
         </CardContent>
       </Card>
     </div>

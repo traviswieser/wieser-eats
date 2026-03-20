@@ -11,9 +11,24 @@ interface Update {
   tag?: 'new' | 'fix' | 'improvement';
 }
 
-export const LATEST_VERSION = '1.6.0';
+export const LATEST_VERSION = '1.7.0';
 
 export const UPDATES: Update[] = [
+  {
+    version: '1.7.0',
+    date: 'Mar 2026',
+    title: 'Real Recipes from Edamam',
+    tag: 'new',
+    notes: [
+      'Replaced AI-generated recipes with 2.3M+ real recipes via Edamam',
+      'Instructions fetched automatically from the original recipe source page',
+      'AI fallback generates instructions when the source page is unavailable',
+      'Original recipe link always shown so you can visit the source',
+      'Photo import: scan a recipe card or cookbook page to add it instantly',
+      'Real nutrition data per serving pulled directly from Edamam',
+      'Edamam App ID + API Key setup in Settings → Recipe Search (free)',
+    ],
+  },
   {
     version: '1.6.0',
     date: 'Mar 20, 2026',

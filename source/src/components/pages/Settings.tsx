@@ -187,7 +187,7 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
       <Card className="border-border/50 bg-card/50">
         <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display flex items-center gap-2">🥗 Recipe Search (Edamam)</CardTitle></CardHeader>
         <CardContent className="px-4 pb-4 space-y-3">
-          <p className="text-xs text-muted-foreground">Edamam powers real recipe search with 2.3M+ recipes. Free — sign up at <a href="https://developer.edamam.com/edamam-recipe-api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">developer.edamam.com</a></p>
+          <p className="text-xs text-muted-foreground">Edamam powers real recipe search with 2.3M+ recipes. Free — sign up at <a href="https://developer.edamam.com/meal-planner-api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">developer.edamam.com</a></p>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">App ID</label>
             <Input
@@ -209,10 +209,11 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
             />
           </div>
           <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1">
-            <p>1. Go to <a href="https://developer.edamam.com/edamam-recipe-api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">developer.edamam.com/edamam-recipe-api</a></p>
-            <p>2. Click "Start Free" and create an account</p>
-            <p>3. Go to Dashboard → Applications → Recipe Search API</p>
-            <p>4. Copy your <strong>App ID</strong> and <strong>App Key</strong> above</p>
+            <p>1. Go to <a href="https://developer.edamam.com/meal-planner-api" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">developer.edamam.com/meal-planner-api</a></p>
+            <p>2. Click <strong>Get Started</strong> under the free Developer plan</p>
+            <p>3. Sign up — enter "Personal" for organization and select <strong>Meal Planner API: Developer</strong> in the plan selector</p>
+            <p>4. Log in, click <strong>Accounts</strong> in the top right, then <strong>Go to Dashboard</strong></p>
+            <p>5. Under the <strong>Applications</strong> tab, click <strong>View</strong> — then copy your <strong>App ID</strong> and <strong>App Key</strong> above</p>
           </div>
         </CardContent>
       </Card>

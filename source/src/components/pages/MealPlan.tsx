@@ -491,7 +491,7 @@ export function MealPlan({
 
       {/* Quick-Add Dialog: Favorites search + manual entry */}
       <Dialog open={!!quickAdd} onOpenChange={o=>{if(!o){setQuickAdd(null);setSearchQuery('');}}}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm mx-auto">
           <DialogHeader>
             <DialogTitle className="font-display text-base">
               {quickAdd?MEAL_ICONS[quickAdd.meal]:''} Add to {quickAdd?.meal}

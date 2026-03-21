@@ -245,6 +245,8 @@ Return a single JSON object with ALL these fields filled in (use the provided va
                 <Badge variant="secondary" className="text-[10px]">⏱ {recipe.cookTime}</Badge>
                 <Badge variant="secondary" className="text-[10px]">🍽 {recipe.cuisine}</Badge>
                 <Badge variant="secondary" className="text-[10px]">{recipe.difficulty}</Badge>
+                {recipe.instructionSource === 'real' && <Badge variant="secondary" className="text-[10px] text-green-400">✓ Real instructions</Badge>}
+                {recipe.instructionSource === 'ai' && <Badge variant="secondary" className="text-[10px] text-blue-400">✨ AI instructions</Badge>}
               </div>
               <div className="mt-2 flex gap-2 text-[10px] text-muted-foreground">
                 <span className="text-orange-400">{recipe.macros.calories} cal</span>
@@ -281,6 +283,8 @@ Return a single JSON object with ALL these fields filled in (use the provided va
                   <Badge variant="secondary" className="text-[10px]">🍽 {selected.cuisine}</Badge>
                   <Badge variant="secondary" className="text-[10px]">🔥 {selected.spiceLevel}</Badge>
                   <Badge variant="secondary" className="text-[10px]">👥 {selected.servings} servings</Badge>
+                  {selected.instructionSource === 'real' && <Badge variant="secondary" className="text-[10px] text-green-400">✓ Real instructions</Badge>}
+                  {selected.instructionSource === 'ai' && <Badge variant="secondary" className="text-[10px] text-blue-400">✨ AI instructions</Badge>}
                 </div>
                 <div className="grid grid-cols-5 gap-1.5">
                   {[

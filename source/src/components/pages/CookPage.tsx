@@ -33,7 +33,13 @@ export function CookPage({ recipe, onBack }: CookPageProps) {
     }
   };
 
-  const toggleWakeLock = () => wakeLock ? releaseWakeLock() : requestWakeLock();
+  const toggleWakeLock = async () => {
+    if (wakeLock) {
+      await releaseWakeLock();
+    } else {
+      await requestWakeLock();
+    }
+  };
 
   // Re-acquire wake lock if page becomes visible again (e.g. user switches app)
   useEffect(() => {

@@ -230,7 +230,7 @@ async function importRecipeFromPhoto(photoPreview: string, activeKey: AIKeyEntry
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
-export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings, savedRecipes, onRecipesGenerated, onLoadFromHistory, onClearRecipes, recipeHistory, showToast }: ChefAIProps) {
+export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings, savedRecipes, onRecipesGenerated, onLoadFromHistory, onClearRecipes, recipeHistory, showToast, onCook }: ChefAIProps) {
   const [filters, setFilters] = useState<AIFilters>({ ...defaultFilters, servings: settings.defaultServings });
   const [query, setQuery] = useState('');
   const [selectedProteins, setSelectedProteins] = useState<string[]>([]);
@@ -524,7 +524,15 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
               </p>
               {batch.recipes.map(recipe => (
                 <Card key={recipe.id} className="border-border/30 bg-card/30 cursor-pointer hover:border-primary/20 transition-colors"
-                  onClick={() => onLoadFromHistory(batch.recipes)}>
+                  onClick={() => {
+                    onLoadFromHistory(batch.recipes);
+                    // Scroll to and expand the specific recipe after a short delay for render
+                    setTimeout(() => {
+                      setExpandedRecipe(recipe.id);
+                      const el = document.getElementById(`recipe-card-${recipe.id}`);
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 80);
+                  }}>
                   <CardContent className="p-3">
                     <p className="text-sm font-medium">{recipe.name}</p>
                     <div className="flex gap-1.5 mt-1">
@@ -607,7 +615,7 @@ function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddT
   })();
 
   return (
-    <Card className="border-border/50 bg-card/60 overflow-hidden transition-all hover:border-primary/30">
+    <Card id={`recipe-card-${recipe.id}`} className="border-border/50 bg-card/60 overflow-hidden transition-all hover:border-primary/30">
       <CardContent className="p-0">
         {showImage && pexelsKey && (imgUrl || imgLoading) && (
           <div className="w-full h-36 bg-secondary/30 overflow-hidden relative">

@@ -73,7 +73,12 @@ export function aggregateIngredients(ingredients: string[]): string[] {
 
 // ─── Day helpers ──────────────────────────────────────────────────────────────
 type DayInfo = { date: string; label: string; day: string; isToday: boolean };
-function ds(d: Date) { return d.toISOString().split('T')[0]; }
+function ds(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 const today = () => ds(new Date());
 function mkDay(d: Date): DayInfo {
   return { date: ds(d), label: d.toLocaleDateString('en-US',{month:'short',day:'numeric'}), day: d.toLocaleDateString('en-US',{weekday:'short'}), isToday: ds(d)===today() };
@@ -301,6 +306,8 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
                   <Badge variant="secondary" className="text-[10px]">📊 {selectedEntry.recipe.difficulty}</Badge>
                   <Badge variant="secondary" className="text-[10px]">🍽 {selectedEntry.recipe.cuisine}</Badge>
                   <Badge variant="secondary" className="text-[10px]">📅 {new Date(selectedEntry.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</Badge>
+                  {selectedEntry.recipe.instructionSource === 'real' && <Badge variant="secondary" className="text-[10px] text-green-400">✓ Real instructions</Badge>}
+                  {selectedEntry.recipe.instructionSource === 'ai' && <Badge variant="secondary" className="text-[10px] text-blue-400">✨ AI instructions</Badge>}
                 </div>
                 <div className="flex gap-3 text-xs">
                   <span className="text-orange-400">{selectedEntry.recipe.macros.calories} cal</span>

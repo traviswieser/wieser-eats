@@ -24,6 +24,7 @@ interface FavoritesProps {
   getMemberName?: (uid?: string) => string;
   getMemberColor?: (uid?: string) => string;
   showToast?: (msg: string) => void;
+  onCook: (recipe: Recipe) => void;
 }
 
 type FavFilter = 'all' | 'mine' | 'household';
@@ -65,7 +66,7 @@ const emptyForm = {
   cookTime: '', servings: '4', cuisine: '', difficulty: '', spiceLevel: '', mealType: '', cookingMethod: '', kidFriendly: false,
 };
 
-export function Favorites({ favorites, onRemove, onUpdate, onAddToMealPlan, onAddToShoppingList, onAddCustomRecipe, settings, currentUserId, inHousehold, getMemberName, getMemberColor, showToast }: FavoritesProps) {
+export function Favorites({ favorites, onRemove, onUpdate, onAddToMealPlan, onAddToShoppingList, onAddCustomRecipe, settings, currentUserId, inHousehold, getMemberName: _getMemberName, getMemberColor: _getMemberColor, showToast, onCook }: FavoritesProps) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [favFilter, setFavFilter] = useState<FavFilter>('all');
@@ -244,6 +245,8 @@ Return a single JSON object with ALL these fields filled in (use the provided va
                 <Badge variant="secondary" className="text-[10px]">⏱ {recipe.cookTime}</Badge>
                 <Badge variant="secondary" className="text-[10px]">🍽 {recipe.cuisine}</Badge>
                 <Badge variant="secondary" className="text-[10px]">{recipe.difficulty}</Badge>
+                {recipe.instructionSource === 'real' && <Badge variant="secondary" className="text-[10px] text-green-400">✓ Real instructions</Badge>}
+                {recipe.instructionSource === 'ai' && <Badge variant="secondary" className="text-[10px] text-blue-400">✨ AI instructions</Badge>}
               </div>
               <div className="mt-2 flex gap-2 text-[10px] text-muted-foreground">
                 <span className="text-orange-400">{recipe.macros.calories} cal</span>
@@ -280,6 +283,8 @@ Return a single JSON object with ALL these fields filled in (use the provided va
                   <Badge variant="secondary" className="text-[10px]">🍽 {selected.cuisine}</Badge>
                   <Badge variant="secondary" className="text-[10px]">🔥 {selected.spiceLevel}</Badge>
                   <Badge variant="secondary" className="text-[10px]">👥 {selected.servings} servings</Badge>
+                  {selected.instructionSource === 'real' && <Badge variant="secondary" className="text-[10px] text-green-400">✓ Real instructions</Badge>}
+                  {selected.instructionSource === 'ai' && <Badge variant="secondary" className="text-[10px] text-blue-400">✨ AI instructions</Badge>}
                 </div>
                 <div className="grid grid-cols-5 gap-1.5">
                   {[
@@ -314,6 +319,7 @@ Return a single JSON object with ALL these fields filled in (use the provided va
                   </ol>
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
+                  <Button size="sm" onClick={() => { onCook(selected); setSelected(null); }} className="text-xs h-7 bg-primary text-primary-foreground">👨‍🍳 Let's Cook!</Button>
                   <Button variant="outline" size="sm" onClick={() => { setPlanRecipe(selected); setSelected(null); }} className="text-xs h-7">📅 Add to Plan</Button>
                   <Button variant="outline" size="sm" onClick={() => addToShoppingList(selected)} className="text-xs h-7">🛒 Ingredients → List</Button>
                   <Button variant="outline" size="sm" onClick={() => { setEditRecipe(selected); setSelected(null); }} className="text-xs h-7">✏️ Edit</Button>

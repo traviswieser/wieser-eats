@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,13 +67,15 @@ export function aggregateIngredients(ingredients: string[]): string[] {
   return Array.from(map.values()).map(({totalQty,hasQty,restCase,count,first})=>{
     if (count===1) return first;
     if (hasQty&&restCase) return `${fmtQty(totalQty)} ${restCase}`;
-    return `${count}× ${restCase}`;
+    return `${count}x ${restCase}`;
   });
 }
 
 // ─── Day helpers ──────────────────────────────────────────────────────────────
 type DayInfo = { date: string; label: string; day: string; isToday: boolean };
-function ds(d: Date) { return d.toISOString().split('T')[0]; }
+function ds(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 const today = () => ds(new Date());
 function mkDay(d: Date): DayInfo {
   return { date: ds(d), label: d.toLocaleDateString('en-US',{month:'short',day:'numeric'}), day: d.toLocaleDateString('en-US',{weekday:'short'}), isToday: ds(d)===today() };
@@ -100,38 +102,160 @@ interface MealPlanProps {
   onUpdate: (id: string, recipe: Recipe) => void;
   onAddToShoppingList: (items: ShoppingItem[]) => void;
   onAdd: (entries: MealPlanEntry[]) => void;
+  onReschedule?: (id: string, newDate: string, newMealType: string) => void;
+  favorites?: Recipe[];
   getMemberColor?: (uid?: string) => string;
   getMemberName?: (uid?: string) => string;
   inHousehold?: boolean;
   showToast?: (msg: string) => void;
   currentView: PlannerView;
   onViewChange: (v: PlannerView) => void;
+  onCook: (recipe: Recipe) => void;
 }
 
 const MEAL_SLOTS = ['breakfast','lunch','dinner','snack'] as const;
 const MEAL_ICONS: Record<string,string> = {breakfast:'🌅',lunch:'☀️',dinner:'🌙',snack:'🍿'};
 const VIEW_LABELS: Record<PlannerView,string> = {weekly:'Week',next7:'Next 7',next3:'Next 3',month:'Month'};
 
-export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,getMemberColor,getMemberName,inHousehold,showToast,currentView,onViewChange}: MealPlanProps) {
+export function MealPlan({
+  mealPlan, onRemove, onUpdate, onAddToShoppingList, onAdd,
+  onReschedule, favorites=[], getMemberColor,
+  inHousehold, showToast, currentView, onViewChange, onCook
+}: MealPlanProps) {
   const [offset, setOffset] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<MealPlanEntry|null>(null);
   const [editEntry, setEditEntry] = useState<MealPlanEntry|null>(null);
   const [quickAdd, setQuickAdd] = useState<{date:string;meal:string}|null>(null);
-  const [quickName, setQuickName] = useState('');
-  const [quickTime, setQuickTime] = useState('30 min');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(()=>{setOffset(0);},[currentView]);
+  // ─── Drag-and-drop state ─────────────────────────────────────────────────
+  const [draggingEntry, setDraggingEntry] = useState<MealPlanEntry|null>(null);
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [dropTarget, setDropTarget] = useState<{date:string;meal:string}|null>(null);
+  const isDraggingRef = useRef(false);
+  const draggingEntryRef = useRef<MealPlanEntry|null>(null);
+  const dropTargetRef = useRef<{date:string;meal:string}|null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
 
-  const flatDays: DayInfo[] = useMemo(()=>{
+  useEffect(()=>{ setOffset(0); },[currentView]);
+
+  // ─── Favorites search ────────────────────────────────────────────────────
+  const filteredFavs = useMemo(() => {
+    if (!favorites.length) return [];
+    if (!searchQuery.trim()) return favorites.slice(0, 8);
+    const q = searchQuery.toLowerCase();
+    return favorites.filter(f => f.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [favorites, searchQuery]);
+
+  const doQuickAdd = useCallback(() => {
+    if (!quickAdd || !searchQuery.trim()) return;
+    onAdd([{
+      id: `mp-${Date.now()}`,
+      date: quickAdd.date,
+      mealType: quickAdd.meal as MealPlanEntry['mealType'],
+      recipe: {
+        id: `quick-${Date.now()}`,
+        name: searchQuery.trim(),
+        description: 'Manually added',
+        ingredients: [], instructions: [],
+        cookTime: '30 min', difficulty: 'Easy',
+        mealType: quickAdd.meal, cuisine: '', cookingMethod: '',
+        servings: 1, spiceLevel: 'Mild',
+        macros: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+        kidFriendly: true,
+      },
+    }]);
+    showToast?.('Added to meal plan');
+    setQuickAdd(null); setSearchQuery('');
+  }, [quickAdd, searchQuery, onAdd, showToast]);
+
+  const addFavoriteToSlot = useCallback((recipe: Recipe) => {
+    if (!quickAdd) return;
+    onAdd([{ id: `mp-${Date.now()}`, date: quickAdd.date, mealType: quickAdd.meal as MealPlanEntry['mealType'], recipe }]);
+    showToast?.('Added to meal plan');
+    setQuickAdd(null); setSearchQuery('');
+  }, [quickAdd, onAdd, showToast]);
+
+  // ─── Long-press drag handlers ────────────────────────────────────────────
+  const dragPointerTarget = useRef<HTMLElement | null>(null);
+  const dragPointerId = useRef<number>(-1);
+
+  const handleEntryPointerDown = useCallback((e: React.PointerEvent, entry: MealPlanEntry) => {
+    e.stopPropagation();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    dragPointerTarget.current = el;
+    dragPointerId.current = e.pointerId;
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    longPressTimer.current = setTimeout(() => {
+      // Release capture so document pointermove fires freely and
+      // elementFromPoint can see drop-target cells beneath the ghost
+      try { dragPointerTarget.current?.releasePointerCapture(dragPointerId.current); } catch { /* ok */ }
+      isDraggingRef.current = true;
+      draggingEntryRef.current = entry;
+      setDraggingEntry(entry);
+      setDragPos({ x: e.clientX, y: e.clientY });
+      try { navigator.vibrate?.(40); } catch { /* no vibrate API */ }
+    }, 480);
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!isDraggingRef.current) {
+        // Cancel long press if finger moved significantly (user is scrolling)
+        const dx = e.clientX - dragStartPos.current.x;
+        const dy = e.clientY - dragStartPos.current.y;
+        if (Math.sqrt(dx*dx+dy*dy) > 8 && longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+        }
+        return;
+      }
+      // Prevent the page from scrolling while dragging
+      e.preventDefault();
+      setDragPos({ x: e.clientX, y: e.clientY });
+      // Ghost has pointer-events:none so elementFromPoint sees the cell below
+      const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement|null;
+      let t: HTMLElement|null = el;
+      while (t && !t.dataset.date) t = t.parentElement as HTMLElement|null;
+      if (t?.dataset.date && t?.dataset.meal) {
+        const dt = { date: t.dataset.date, meal: t.dataset.meal };
+        dropTargetRef.current = dt; setDropTarget(dt);
+      } else { dropTargetRef.current = null; setDropTarget(null); }
+    };
+    const onUp = () => {
+      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+      if (isDraggingRef.current && draggingEntryRef.current && dropTargetRef.current) {
+        const entry = draggingEntryRef.current;
+        const dt = dropTargetRef.current;
+        if (dt.date !== entry.date || dt.meal !== entry.mealType) {
+          onReschedule?.(entry.id, dt.date, dt.meal);
+          showToast?.('Meal rescheduled');
+        }
+      }
+      isDraggingRef.current = false; draggingEntryRef.current = null;
+      dropTargetRef.current = null; setDraggingEntry(null); setDropTarget(null);
+    };
+    document.addEventListener('pointermove', onMove, { passive: false });
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+  }, [onReschedule, showToast]);
+
+  // ─── View data ───────────────────────────────────────────────────────────
+  const flatDays = useMemo(()=>{
     if (currentView==='weekly') return getWeekDays(offset);
     if (currentView==='next7') return getRolling(7,offset);
     if (currentView==='next3') return getRolling(3,offset);
-    if (currentView==='month') return getMonth(offset).flat();
-    return getWeekDays(offset);
+    return getMonth(offset).flat();
   },[currentView,offset]);
 
   const monthWeeks = useMemo(()=>currentView==='month'?getMonth(offset):null,[currentView,offset]);
-
   const getEntries = (date: string, meal: string) => mealPlan.filter(e=>e.date===date&&e.mealType===meal);
   const viewEntries = mealPlan.filter(e=>flatDays.some(d=>d.date===e.date));
 
@@ -152,16 +276,7 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
     showToast?.(`${agg.length} ingredients added to shopping list`);
   };
 
-  const doQuickAdd = () => {
-    if (!quickAdd||!quickName.trim()) return;
-    onAdd([{id:`mp-${Date.now()}`,date:quickAdd.date,mealType:quickAdd.meal as any,recipe:{
-      id:`quick-${Date.now()}`,name:quickName.trim(),description:'Manually added',ingredients:[],instructions:[],
-      cookTime:quickTime,difficulty:'Easy',mealType:quickAdd.meal,cuisine:'',cookingMethod:'',servings:1,
-      spiceLevel:'Mild',macros:{calories:0,protein:0,carbs:0,fat:0,fiber:0},kidFriendly:true,
-    }}]);
-    setQuickAdd(null); setQuickName(''); showToast?.('Added to meal plan');
-  };
-
+  // ─── Grid renderer ───────────────────────────────────────────────────────
   const renderGrid = (days: DayInfo[]) => (
     <div className="grid gap-1" style={{gridTemplateColumns:`repeat(${days.length},minmax(0,1fr))`}}>
       {days.map(d=>(
@@ -176,17 +291,39 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
             {MEAL_ICONS[meal]} {meal}
           </div>
           {days.map(d=>{
-            const entries=getEntries(d.date,meal);
+            const entries = getEntries(d.date, meal);
+            const isDropTarget = dropTarget?.date===d.date && dropTarget?.meal===meal;
+            const beingDragged = draggingEntry && entries.some(e=>e.id===draggingEntry.id);
             return (
-              <button key={`${d.date}-${meal}`}
-                onClick={()=>entries.length>0?setSelectedEntry(entries[0]):setQuickAdd({date:d.date,meal})}
-                className={`min-h-[48px] rounded-lg border text-[10px] p-1 text-left transition-colors ${entries.length>0?'border-primary/30 bg-primary/5 hover:bg-primary/10':'border-border/30 bg-card/20 hover:border-primary/20 hover:bg-primary/5'}`}>
-                {entries.length>0?entries.map(entry=>(
-                  <div key={entry.id} className="flex items-start gap-1">
-                    {inHousehold&&(entry as any).addedBy&&<span className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{background:getMemberColor?.((entry as any).addedBy)||'#888'}}/>}
-                    <div className="min-w-0"><p className="font-medium truncate leading-tight">{entry.recipe.name}</p><p className="text-muted-foreground opacity-70">{entry.recipe.cookTime}</p></div>
+              <button
+                key={`${d.date}-${meal}`}
+                data-date={d.date}
+                data-meal={meal}
+                onClick={()=>{ if(isDraggingRef.current) return; entries.length>0?setSelectedEntry(entries[0]):setQuickAdd({date:d.date,meal}); }}
+                className={`min-h-[48px] rounded-lg border text-[10px] p-1 text-left transition-all ${
+                  isDropTarget
+                    ? 'border-primary bg-primary/20 ring-1 ring-primary scale-[1.02]'
+                    : entries.length>0
+                      ? beingDragged ? 'border-primary/20 bg-card/20 opacity-30' : 'border-primary/30 bg-primary/5 hover:bg-primary/10'
+                      : 'border-border/30 bg-card/20 hover:border-primary/20 hover:bg-primary/5'
+                }`}>
+                {isDropTarget && !beingDragged && (
+                  <div className="flex items-center justify-center h-full text-primary/70 text-base font-bold">↓</div>
+                )}
+                {!beingDragged && entries.map(entry=>(
+                  <div key={entry.id}
+                    className="flex items-start gap-1 select-none cursor-grab"
+                    style={{ touchAction: 'none' }}
+                    onPointerDown={(e)=>handleEntryPointerDown(e, entry)}>
+                    {inHousehold&&(entry as any).addedBy&&
+                      <span className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{background:getMemberColor?.((entry as any).addedBy)||'#888'}}/>}
+                    <div className="min-w-0">
+                      <p className="font-medium truncate leading-tight">{entry.recipe.name}</p>
+                      <p className="text-muted-foreground opacity-70">{entry.recipe.cookTime}</p>
+                    </div>
                   </div>
-                )):(
+                ))}
+                {entries.length===0&&!isDropTarget&&(
                   <div className="flex items-center justify-center h-full opacity-0 hover:opacity-30 transition-opacity text-muted-foreground text-lg">+</div>
                 )}
               </button>
@@ -206,7 +343,7 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
             {week.map(d=>{
               const de=mealPlan.filter(e=>e.date===d.date);
               return (
-                <button key={d.date}
+                <button key={d.date} data-date={d.date} data-meal="dinner"
                   onClick={()=>de.length>0?setSelectedEntry(de[0]):setQuickAdd({date:d.date,meal:'dinner'})}
                   className={`min-h-[56px] rounded-lg border p-1.5 text-left transition-colors text-[9px] ${d.isToday?'border-primary/50':'border-border/30'} ${de.length>0?'bg-primary/5 hover:bg-primary/10':'bg-card/20 hover:bg-card/40'}`}>
                   <p className={`font-bold mb-0.5 ${d.isToday?'text-primary':'text-muted-foreground'}`}>{d.day} {d.label.split(' ')[1]}</p>
@@ -224,6 +361,14 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
 
   return (
     <div className="space-y-4">
+      {/* Drag ghost — pointer-events:none so it doesn't block drop detection */}
+      {draggingEntry && (
+        <div style={{position:'fixed',left:dragPos.x-72,top:dragPos.y-22,pointerEvents:'none',zIndex:9999,transform:'rotate(2deg) scale(1.08)'}}
+          className="bg-card border border-primary/70 rounded-lg px-3 py-2 text-xs font-semibold shadow-2xl max-w-[150px] truncate">
+          {MEAL_ICONS[draggingEntry.mealType]} {draggingEntry.recipe.name}
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-2">
         <div>
           <h2 className="font-display text-2xl font-bold">Meal Planner</h2>
@@ -259,9 +404,13 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
         </Card>
       )}
 
+      {draggingEntry && (
+        <p className="text-center text-xs text-primary/70 animate-pulse">Drop on any meal slot to reschedule</p>
+      )}
+
       <div className="overflow-x-auto -mx-4 px-4">
         <div className={currentView==='month'?'':currentView==='next3'?'min-w-[300px]':'min-w-[600px]'}>
-          {currentView==='month'&&monthWeeks?renderMonth(monthWeeks):renderGrid(flatDays)}
+          {currentView==='month'&&monthWeeks ? renderMonth(monthWeeks) : renderGrid(flatDays)}
         </div>
       </div>
 
@@ -287,7 +436,7 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
         </DialogContent>
       </Dialog>
 
-      {/* Entry Detail */}
+      {/* Entry Detail Dialog */}
       <Dialog open={!!selectedEntry} onOpenChange={o=>!o&&setSelectedEntry(null)}>
         <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           {selectedEntry&&(
@@ -300,6 +449,8 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
                   <Badge variant="secondary" className="text-[10px]">📊 {selectedEntry.recipe.difficulty}</Badge>
                   <Badge variant="secondary" className="text-[10px]">🍽 {selectedEntry.recipe.cuisine}</Badge>
                   <Badge variant="secondary" className="text-[10px]">📅 {new Date(selectedEntry.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</Badge>
+                  {selectedEntry.recipe.instructionSource==='real'&&<Badge variant="secondary" className="text-[10px] text-green-400">✓ Real instructions</Badge>}
+                  {selectedEntry.recipe.instructionSource==='ai'&&<Badge variant="secondary" className="text-[10px] text-blue-400">✨ AI instructions</Badge>}
                 </div>
                 <div className="flex gap-3 text-xs">
                   <span className="text-orange-400">{selectedEntry.recipe.macros.calories} cal</span>
@@ -311,7 +462,21 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
                   <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Ingredients</p>
                   <ul className="space-y-0.5">{selectedEntry.recipe.ingredients.map((ing,i)=><li key={i} className="flex items-start gap-1.5 text-xs"><span className="text-primary">●</span>{ing}</li>)}</ul>
                 </div>
+                {selectedEntry.recipe.instructions.length>0&&(
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Instructions</p>
+                    <ol className="space-y-2">
+                      {selectedEntry.recipe.instructions.map((step,i)=>(
+                        <li key={i} className="flex items-start gap-2 text-xs">
+                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/15 text-primary text-[10px] flex items-center justify-center font-bold mt-0.5">{i+1}</span>
+                          <span>{step.replace(/^\d+[.)]\s*/,'')}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
                 <div className="flex gap-2">
+                  <Button size="sm" onClick={()=>{onCook(selectedEntry.recipe);setSelectedEntry(null);}} className="flex-1 text-xs bg-primary text-primary-foreground">👨‍🍳 Let's Cook!</Button>
                   <Button size="sm" variant="outline" onClick={()=>{setEditEntry(selectedEntry);setSelectedEntry(null);}} className="flex-1 text-xs">✏️ Edit</Button>
                   <Button size="sm" variant="destructive" onClick={()=>{onRemove(selectedEntry.id);setSelectedEntry(null);showToast?.('Removed from plan');}} className="flex-1 text-xs">Remove</Button>
                 </div>
@@ -324,19 +489,57 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
       <RecipeEditDialog recipe={editEntry?.recipe??null} open={!!editEntry} onClose={()=>setEditEntry(null)}
         onSave={updated=>{if(editEntry){onUpdate(editEntry.id,updated);showToast?.('Recipe updated');}}}/>
 
-      <Dialog open={!!quickAdd} onOpenChange={o=>{if(!o)setQuickAdd(null);}}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader><DialogTitle className="font-display text-base">Add {quickAdd?MEAL_ICONS[quickAdd.meal]:''} {quickAdd?.meal}</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-1">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">What are you making?</label>
-              <Input placeholder="e.g. Chicken stir fry" value={quickName} onChange={e=>setQuickName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&doQuickAdd()} className="h-9 text-sm bg-background/50" autoFocus/>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Cook time</label>
-              <Input placeholder="e.g. 30 min" value={quickTime} onChange={e=>setQuickTime(e.target.value)} className="h-9 text-sm bg-background/50"/>
-            </div>
-            <Button onClick={doQuickAdd} disabled={!quickName.trim()} className="w-full bg-primary text-primary-foreground text-xs font-semibold">Add to Plan</Button>
+      {/* Quick-Add Dialog: Favorites search + manual entry */}
+      <Dialog open={!!quickAdd} onOpenChange={o=>{if(!o){setQuickAdd(null);setSearchQuery('');}}}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base">
+              {quickAdd?MEAL_ICONS[quickAdd.meal]:''} Add to {quickAdd?.meal}
+              <span className="text-xs font-normal text-muted-foreground ml-1.5">
+                {quickAdd&&new Date(quickAdd.date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2.5 pt-1">
+            <Input
+              placeholder={favorites.length>0 ? 'Search favorites or type a name…' : 'e.g. Chicken stir fry'}
+              value={searchQuery}
+              onChange={e=>setSearchQuery(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&doQuickAdd()}
+              className="h-9 text-sm bg-background/50"
+              autoFocus
+            />
+
+            {/* Favorites dropdown list */}
+            {filteredFavs.length>0&&(
+              <div className="rounded-lg border border-border/40 bg-card/40 divide-y divide-border/20 overflow-hidden max-h-56 overflow-y-auto">
+                {filteredFavs.map(fav=>(
+                  <button key={fav.id} onClick={()=>addFavoriteToSlot(fav)}
+                    className="w-full text-left px-3 py-2 hover:bg-primary/10 transition-colors flex items-center gap-2.5">
+                    <span className="text-base shrink-0">{MEAL_ICONS[fav.mealType]||'🍽'}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium leading-snug line-clamp-2">{fav.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{fav.cookTime} · {fav.cuisine||fav.mealType}</p>
+                    </div>
+                    <span className="text-primary/60 text-sm shrink-0">＋</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Show when no favorites match / no favorites at all */}
+            {favorites.length===0&&!searchQuery.trim()&&(
+              <p className="text-center text-[11px] text-muted-foreground opacity-60 py-1">
+                Type a name to add it, or save recipes to Favorites first
+              </p>
+            )}
+
+            {/* Manual-add button when something is typed */}
+            {searchQuery.trim()&&(
+              <Button onClick={doQuickAdd} className="w-full bg-primary text-primary-foreground text-xs h-9">
+                Add "{searchQuery.trim()}" as custom meal
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

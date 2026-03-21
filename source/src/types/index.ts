@@ -56,7 +56,8 @@ export interface AIKeyEntry {
 }
 
 export interface UserSettings {
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'auto';
+  colorPalette?: string;
   allergies: string[];
   dietType: string;
   defaultServings: number;
@@ -80,7 +81,7 @@ export interface AIFilters {
   spiceLevel: string;
 }
 
-export type PageName = 'chef' | 'pantry' | 'mealplan' | 'shopping' | 'favorites' | 'settings' | 'updates';
+export type PageName = 'chef' | 'pantry' | 'mealplan' | 'shopping' | 'favorites' | 'settings' | 'updates' | 'cook';
 
 export type PlannerView = 'weekly' | 'next7' | 'next3' | 'month';
 

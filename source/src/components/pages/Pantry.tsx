@@ -1,10 +1,9 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import type { PantryItem } from '@/types';
 
@@ -16,14 +15,14 @@ interface PantryProps {
   loaded: boolean;
 }
 
-export function Pantry({ pantry, savePantry, loaded }: PantryProps) {
+export function Pantry({ pantry, savePantry, loaded: _loaded }: PantryProps) {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [category, setCategory] = useState('Other');
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('all');
   const [photoLoading, setPhotoLoading] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [_photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [detectedItems, setDetectedItems] = useState<{ name: string; quantity: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);

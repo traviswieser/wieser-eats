@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -11,9 +11,24 @@ interface Update {
   tag?: 'new' | 'fix' | 'improvement';
 }
 
-export const LATEST_VERSION = '1.7.0';
+export const LATEST_VERSION = '2.1.0';
 
 export const UPDATES: Update[] = [
+  {
+    version: '2.1.0',
+    date: 'Mar 2026',
+    title: 'Planner Upgrades & Theme Customizer',
+    tag: 'new',
+    notes: [
+      'Meal planner now shows your favorites as a searchable dropdown when adding to a slot',
+      'Long-press any planned meal to drag and drop it to a new day or time',
+      'Wake Lock fixed — screen now stays on properly while cooking',
+      'PlanDialog dropdown bug fixed — no longer accidentally closes the dialog',
+      'New theme customizer: choose from 8 color palettes in Appearance settings',
+      'Added Auto (match device) light/dark mode option — now the default',
+      'Header theme button cycles Auto → Light → Dark with one tap',
+    ],
+  },
   {
     version: '1.7.0',
     date: 'Mar 2026',

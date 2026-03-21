@@ -13,24 +13,38 @@ interface PlanDialogProps {
 
 const MEAL_ICONS: Record<string, string> = { breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍿' };
 
-function todayStr() { return new Date().toISOString().split('T')[0]; }
+// Use local time to avoid timezone-induced date offset
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function addDays(dateStr: string, n: number) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 function addWeeks(dateStr: string, n: number) { return addDays(dateStr, n * 7); }
 function addMonths(dateStr: string, n: number) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setMonth(d.getMonth() + n);
-  return d.toISOString().split('T')[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function buildEntries(recipe: Recipe, startDate: string, mealType: string, recurring: string, endDate: string): MealPlanEntry[] {
   const entries: MealPlanEntry[] = [];
   let current = startDate;
   const end = recurring === 'none' ? startDate : endDate;
-  let safetyLimit = 366; // prevent infinite loops
+  let safetyLimit = 366;
 
   while (current <= end && safetyLimit-- > 0) {
     entries.push({
@@ -69,28 +83,38 @@ export function PlanDialog({ recipe, open, onClose, onAdd }: PlanDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="max-w-xs">
+      <DialogContent
+        className="w-[calc(100vw-2rem)] max-w-sm mx-auto"
+        onPointerDownOutside={(e) => {
+          const t = e.target as Element;
+          if (t.closest('[data-radix-popper-content-wrapper]') || t.closest('[role="listbox"]')) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          const t = e.target as Element;
+          if (t.closest('[data-radix-popper-content-wrapper]') || t.closest('[role="listbox"]')) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="font-display text-base">📅 Add to Meal Plan</DialogTitle>
         </DialogHeader>
         {recipe && (
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground truncate font-medium">"{recipe.name}"</p>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground line-clamp-2 font-medium">"{recipe.name}"</p>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Date</label>
               <input
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background/50 text-foreground text-sm"
+                className="w-full h-10 px-3 rounded-md border border-input bg-background/50 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Meal</label>
               <Select value={mealType} onValueChange={setMealType}>
-                <SelectTrigger className="h-9 text-xs bg-background/50">
+                <SelectTrigger className="h-10 text-sm bg-background/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -101,10 +125,10 @@ export function PlanDialog({ recipe, open, onClose, onAdd }: PlanDialogProps) {
               </Select>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Repeat</label>
               <Select value={recurring} onValueChange={setRecurring}>
-                <SelectTrigger className="h-9 text-xs bg-background/50">
+                <SelectTrigger className="h-10 text-sm bg-background/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -117,14 +141,14 @@ export function PlanDialog({ recipe, open, onClose, onAdd }: PlanDialogProps) {
             </div>
 
             {recurring !== 'none' && (
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Repeat until</label>
                 <input
                   type="date"
                   value={endDate}
                   min={date}
                   onChange={e => setEndDate(e.target.value)}
-                  className="w-full h-9 px-3 rounded-md border border-input bg-background/50 text-foreground text-sm"
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background/50 text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 />
                 <p className="text-[10px] text-muted-foreground">
                   Will create {entryCount} {entryCount === 1 ? 'entry' : 'entries'}
@@ -132,7 +156,7 @@ export function PlanDialog({ recipe, open, onClose, onAdd }: PlanDialogProps) {
               </div>
             )}
 
-            <Button onClick={handleAdd} className="w-full bg-primary text-primary-foreground text-xs font-semibold h-9">
+            <Button onClick={handleAdd} className="w-full bg-primary text-primary-foreground text-sm font-semibold h-11">
               {recurring === 'none' ? 'Add to Plan' : `Add ${entryCount} Recurring Entries`}
             </Button>
           </div>

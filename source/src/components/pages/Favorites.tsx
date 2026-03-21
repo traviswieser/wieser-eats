@@ -66,7 +66,7 @@ const emptyForm = {
   cookTime: '', servings: '4', cuisine: '', difficulty: '', spiceLevel: '', mealType: '', cookingMethod: '', kidFriendly: false,
 };
 
-export function Favorites({ favorites, onRemove, onUpdate, onAddToMealPlan, onAddToShoppingList, onAddCustomRecipe, settings, currentUserId, inHousehold, getMemberName, getMemberColor, showToast, onCook }: FavoritesProps) {
+export function Favorites({ favorites, onRemove, onUpdate, onAddToMealPlan, onAddToShoppingList, onAddCustomRecipe, settings, currentUserId, inHousehold, getMemberName: _getMemberName, getMemberColor: _getMemberColor, showToast, onCook }: FavoritesProps) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [favFilter, setFavFilter] = useState<FavFilter>('all');

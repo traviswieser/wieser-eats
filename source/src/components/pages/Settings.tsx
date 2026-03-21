@@ -8,10 +8,20 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { UserSettings, AIProvider, AIKeyEntry } from '@/types';
 
 const COMMON_ALLERGIES = ['Dairy','Eggs','Fish','Shellfish','Tree Nuts','Peanuts','Wheat/Gluten','Soy','Sesame','Corn'];
+
+const COLOR_PALETTES = [
+  { id: 'spice',      name: 'Spice',      primary: '25 95% 53%'  },
+  { id: 'sage',       name: 'Sage',       primary: '142 43% 42%' },
+  { id: 'ocean',      name: 'Ocean',      primary: '200 72% 42%' },
+  { id: 'lavender',   name: 'Lavender',   primary: '265 60% 55%' },
+  { id: 'sunrise',    name: 'Sunrise',    primary: '45 90% 50%'  },
+  { id: 'berry',      name: 'Berry',      primary: '335 65% 47%' },
+  { id: 'terracotta', name: 'Terracotta', primary: '10 65% 50%'  },
+  { id: 'slate',      name: 'Slate',      primary: '215 50% 50%' },
+];
 const DIET_TYPES = [
   { value: 'none', label: 'No Restriction' }, { value: 'keto', label: 'Keto' }, { value: 'low-carb', label: 'Low Carb' },
   { value: 'paleo', label: 'Paleo' }, { value: 'vegetarian', label: 'Vegetarian' }, { value: 'vegan', label: 'Vegan' },
@@ -300,13 +310,62 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
         </CardContent>
       </Card>
 
-      {/* Theme */}
+      {/* Appearance */}
       <Card className="border-border/50 bg-card/50">
         <CardHeader className="pb-2 pt-4 px-4"><CardTitle className="text-sm font-display">Appearance</CardTitle></CardHeader>
-        <CardContent className="px-4 pb-4">
-          <div className="flex items-center justify-between">
-            <div><Label className="text-sm font-medium">Dark Mode</Label><p className="text-xs text-muted-foreground">Toggle between dark and light themes</p></div>
-            <Switch checked={settings.theme === 'dark'} onCheckedChange={checked => saveSettings({ ...settings, theme: checked ? 'dark' : 'light' })} />
+        <CardContent className="px-4 pb-4 space-y-4">
+          {/* Theme Mode */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Theme Mode</Label>
+            <div className="flex gap-1.5">
+              {(['auto', 'light', 'dark'] as const).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => saveSettings({ ...settings, theme: mode })}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all ${
+                    settings.theme === mode
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'border-border/50 text-muted-foreground hover:bg-secondary/60'
+                  }`}
+                >
+                  {mode === 'auto' ? '🔆 Auto' : mode === 'light' ? '☀️ Light' : '🌙 Dark'}
+                </button>
+              ))}
+            </div>
+            {settings.theme === 'auto' && (
+              <p className="text-[10px] text-muted-foreground">Matches your device's display settings automatically</p>
+            )}
+          </div>
+
+          <Separator className="opacity-50" />
+
+          {/* Color Palette */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Color Palette</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {COLOR_PALETTES.map(p => {
+                const isActive = (settings.colorPalette || 'spice') === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => saveSettings({ ...settings, colorPalette: p.id })}
+                    className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all ${
+                      isActive
+                        ? 'border-foreground/40 bg-secondary/70 ring-1 ring-foreground/20'
+                        : 'border-border/30 hover:bg-secondary/30'
+                    }`}
+                  >
+                    <div
+                      className="w-7 h-7 rounded-full shadow-sm border border-white/10"
+                      style={{ backgroundColor: `hsl(${p.primary})` }}
+                    />
+                    <span className={`text-[10px] leading-tight text-center ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                      {p.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -417,7 +476,7 @@ export function Settings({ settings, saveSettings, user, onSignOut, appName, hou
           <p className="font-display font-bold text-sm"><span className="text-primary">{(appName || 'Wieser Eats').split(' ')[0]}</span> {(appName || 'Wieser Eats').split(' ').slice(1).join(' ')}</p>
           <p className="text-xs text-muted-foreground mt-0.5">AI-powered meal planning for the whole household</p>
           <button onClick={onGoToUpdates} className="text-xs text-primary mt-2 hover:underline font-medium">📋 App Updates &amp; Changelog →</button>
-          <p className="text-[10px] text-muted-foreground mt-2 opacity-50">v1.7.0</p>
+          <p className="text-[10px] text-muted-foreground mt-2 opacity-50">v2.1.0</p>
         </CardContent>
       </Card>
     </div>

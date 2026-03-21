@@ -142,15 +142,42 @@ export default function App() {
     }
   }, []);
 
+  // ─── Theme (dark/light/auto) ─────────────────────────────────────────────
   useEffect(() => {
-    if (settingsLoaded) {
-      document.documentElement.classList.toggle('dark', settings.theme === 'dark');
-    }
+    if (!settingsLoaded) return;
+    const apply = (prefersDark: boolean) => {
+      if (settings.theme === 'auto') {
+        document.documentElement.classList.toggle('dark', prefersDark);
+      } else {
+        document.documentElement.classList.toggle('dark', settings.theme === 'dark');
+      }
+    };
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    apply(mq.matches);
+    const handler = (e: MediaQueryListEvent) => { if (settings.theme === 'auto') apply(e.matches); };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, [settings.theme, settingsLoaded]);
 
+  // Default to dark while settings load to prevent flash
+  useEffect(() => { document.documentElement.classList.add('dark'); }, []);
+
+  // ─── Color palette ───────────────────────────────────────────────────────
   useEffect(() => {
-    document.documentElement.classList.add('dark');
-  }, []);
+    const PALETTES: Record<string, string> = {
+      spice:      '25 95% 53%',
+      sage:       '142 43% 42%',
+      ocean:      '200 72% 42%',
+      lavender:   '265 60% 55%',
+      sunrise:    '45 90% 50%',
+      berry:      '335 65% 47%',
+      terracotta: '10 65% 50%',
+      slate:      '215 50% 50%',
+    };
+    const palette = settings.colorPalette || 'spice';
+    const hsl = PALETTES[palette] ?? PALETTES.spice;
+    document.documentElement.style.setProperty('--primary', hsl);
+  }, [settings.colorPalette]);
 
   const handleSignOut = async () => {
     // Remove the legacy shared settings key so it can never leak to the next user.
@@ -175,6 +202,8 @@ export default function App() {
   const removeFromMealPlan = (id: string) => saveMealPlan(mealPlan.filter(e => e.id !== id));
   const updateMealPlanEntry = (id: string, recipe: Recipe) =>
     saveMealPlan(mealPlan.map(e => e.id === id ? { ...e, recipe } : e));
+  const rescheduleMealPlanEntry = (id: string, newDate: string, newMealType: string) =>
+    saveMealPlan(mealPlan.map(e => e.id === id ? { ...e, date: newDate, mealType: newMealType as MealPlanEntry['mealType'] } : e));
   const addToShoppingList = (items: ShoppingItem[]) => {
     const newItems = items.filter(i => !shoppingList.find(s => s.name.toLowerCase() === i.name.toLowerCase()));
     saveShoppingList([...shoppingList, ...newItems]);
@@ -231,13 +260,13 @@ export default function App() {
             )}
             <button
               onClick={() => {
-                const newTheme = settings.theme === 'dark' ? 'light' : 'dark';
-                saveSettings({ ...settings, theme: newTheme });
+                const cycle: Record<string, UserSettings['theme']> = { auto: 'light', light: 'dark', dark: 'auto' };
+                saveSettings({ ...settings, theme: cycle[settings.theme] ?? 'auto' });
               }}
               className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors text-sm"
-              title="Toggle theme"
+              title={`Theme: ${settings.theme}`}
             >
-              {settings.theme === 'dark' ? '☀️' : '🌙'}
+              {settings.theme === 'dark' ? '🌙' : settings.theme === 'light' ? '☀️' : '🔆'}
             </button>
           </div>
         </div>
@@ -256,7 +285,7 @@ export default function App() {
             onCook={recipe => { setCookRecipe(recipe); navigate('cook'); }} />
         )}
         {page === 'pantry' && <Pantry pantry={pantry} savePantry={savePantry} loaded={pantryLoaded} />}
-        {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onUpdate={updateMealPlanEntry} onAddToShoppingList={addToShoppingList} onAdd={addToMealPlan} getMemberColor={hh.getMemberColor} getMemberName={hh.getMemberName} inHousehold={inHousehold} showToast={showToast} currentView={plannerView} onViewChange={setPlannerView} onCook={recipe => { setCookRecipe(recipe); navigate('cook'); }} />}
+        {page === 'mealplan' && <MealPlan mealPlan={mealPlan} onRemove={removeFromMealPlan} onUpdate={updateMealPlanEntry} onReschedule={rescheduleMealPlanEntry} favorites={favorites} onAddToShoppingList={addToShoppingList} onAdd={addToMealPlan} getMemberColor={hh.getMemberColor} getMemberName={hh.getMemberName} inHousehold={inHousehold} showToast={showToast} currentView={plannerView} onViewChange={setPlannerView} onCook={recipe => { setCookRecipe(recipe); navigate('cook'); }} />}
         {page === 'shopping' && <ShoppingList list={shoppingList} saveList={saveShoppingList} />}
         {page === 'favorites' && <Favorites favorites={favorites} onRemove={removeFromFavorites} onUpdate={updateFavorite} onAddToMealPlan={addToMealPlan} onAddToShoppingList={addToShoppingList} onAddCustomRecipe={addToFavorites} settings={settings} currentUserId={user?.uid} inHousehold={inHousehold} getMemberName={hh.getMemberName} getMemberColor={hh.getMemberColor} showToast={showToast} onCook={recipe => { setCookRecipe(recipe); navigate('cook'); }} />}
         {page === 'settings' && <Settings settings={settings} saveSettings={saveSettings} user={user} onSignOut={handleSignOut} appName={`${getLastName()} Eats`} household={hh.household} onCreateHousehold={hh.createHousehold} onJoinHousehold={hh.joinHousehold} onLeaveHousehold={hh.leaveHousehold} onGoToUpdates={() => navigate('updates')} />}

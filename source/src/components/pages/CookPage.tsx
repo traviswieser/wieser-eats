@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+
 import { Separator } from '@/components/ui/separator';
 import type { Recipe } from '@/types';
 
@@ -41,19 +41,25 @@ export function CookPage({ recipe, onBack }: CookPageProps) {
     }
   };
 
-  // Re-acquire wake lock if page becomes visible again (e.g. user switches app)
+  // Re-acquire wake lock when page becomes visible (e.g. user switches apps back).
+  // Depends on ref — not state — so this never re-runs and the cleanup never
+  // accidentally releases the lock mid-session.
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (wakeLock && document.visibilityState === 'visible') {
+      if (wakeLockRef.current && document.visibilityState === 'visible') {
         await requestWakeLock();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      releaseWakeLock();
     };
-  }, [wakeLock]);
+  }, []); // stable — uses ref, not state
+
+  // Release wake lock only when the Cook page unmounts entirely.
+  useEffect(() => {
+    return () => { void releaseWakeLock(); };
+  }, []); // stable — runs once on mount/unmount
 
   const toggleIngredient = (i: number) => {
     setCheckedIngredients(prev => {

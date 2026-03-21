@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { PlanDialog } from '@/components/PlanDialog';
 import { RecipeEditDialog } from '@/components/RecipeEditDialog';
-import type { PantryItem, Recipe, RecipeHistory, MealPlanEntry, ShoppingItem, UserSettings, AIFilters, AIProvider, AIKeyEntry } from '@/types';
+import type { PantryItem, Recipe, RecipeHistory, MealPlanEntry, ShoppingItem, UserSettings, AIFilters, AIKeyEntry } from '@/types';
 
 interface ChefAIProps {
   pantry: PantryItem[];

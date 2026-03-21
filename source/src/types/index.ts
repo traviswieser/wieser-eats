@@ -56,7 +56,8 @@ export interface AIKeyEntry {
 }
 
 export interface UserSettings {
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'auto';
+  colorPalette?: string;
   allergies: string[];
   dietType: string;
   defaultServings: number;

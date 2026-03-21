@@ -83,7 +83,17 @@ export function PlanDialog({ recipe, open, onClose, onAdd }: PlanDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-sm mx-auto">
+      <DialogContent
+        className="w-[calc(100vw-2rem)] max-w-sm mx-auto"
+        onPointerDownOutside={(e) => {
+          const t = e.target as Element;
+          if (t.closest('[data-radix-popper-content-wrapper]') || t.closest('[role="listbox"]')) e.preventDefault();
+        }}
+        onInteractOutside={(e) => {
+          const t = e.target as Element;
+          if (t.closest('[data-radix-popper-content-wrapper]') || t.closest('[role="listbox"]')) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="font-display text-base">📅 Add to Meal Plan</DialogTitle>
         </DialogHeader>

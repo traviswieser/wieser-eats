@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  db, doc, setDoc, getDoc, updateDoc, deleteDoc,
+  db, doc, setDoc, updateDoc, deleteDoc,
   collection, query, where, getDocs, onSnapshot, serverTimestamp,
 } from '@/firebase';
 import type { User } from '@/firebase';

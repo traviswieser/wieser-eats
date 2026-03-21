@@ -518,7 +518,7 @@ export function MealPlan({
                     className="w-full text-left px-3 py-2 hover:bg-primary/10 transition-colors flex items-center gap-2.5">
                     <span className="text-base shrink-0">{MEAL_ICONS[fav.mealType]||'🍽'}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium truncate">{fav.name}</p>
+                      <p className="text-xs font-medium leading-snug line-clamp-2">{fav.name}</p>
                       <p className="text-[10px] text-muted-foreground">{fav.cookTime} · {fav.cuisine||fav.mealType}</p>
                     </div>
                     <span className="text-primary/60 text-sm shrink-0">＋</span>

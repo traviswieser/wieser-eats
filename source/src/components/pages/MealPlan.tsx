@@ -178,10 +178,20 @@ export function MealPlan({
   }, [quickAdd, onAdd, showToast]);
 
   // ─── Long-press drag handlers ────────────────────────────────────────────
+  const dragPointerTarget = useRef<HTMLElement | null>(null);
+  const dragPointerId = useRef<number>(-1);
+
   const handleEntryPointerDown = useCallback((e: React.PointerEvent, entry: MealPlanEntry) => {
     e.stopPropagation();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    dragPointerTarget.current = el;
+    dragPointerId.current = e.pointerId;
     dragStartPos.current = { x: e.clientX, y: e.clientY };
     longPressTimer.current = setTimeout(() => {
+      // Release capture so document pointermove fires freely and
+      // elementFromPoint can see drop-target cells beneath the ghost
+      try { dragPointerTarget.current?.releasePointerCapture(dragPointerId.current); } catch { /* ok */ }
       isDraggingRef.current = true;
       draggingEntryRef.current = entry;
       setDraggingEntry(entry);
@@ -193,7 +203,7 @@ export function MealPlan({
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (!isDraggingRef.current) {
-        // Cancel long press if finger moved (user is scrolling)
+        // Cancel long press if finger moved significantly (user is scrolling)
         const dx = e.clientX - dragStartPos.current.x;
         const dy = e.clientY - dragStartPos.current.y;
         if (Math.sqrt(dx*dx+dy*dy) > 8 && longPressTimer.current) {
@@ -202,6 +212,8 @@ export function MealPlan({
         }
         return;
       }
+      // Prevent the page from scrolling while dragging
+      e.preventDefault();
       setDragPos({ x: e.clientX, y: e.clientY });
       // Ghost has pointer-events:none so elementFromPoint sees the cell below
       const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement|null;
@@ -225,7 +237,7 @@ export function MealPlan({
       isDraggingRef.current = false; draggingEntryRef.current = null;
       dropTargetRef.current = null; setDraggingEntry(null); setDropTarget(null);
     };
-    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointermove', onMove, { passive: false });
     document.addEventListener('pointerup', onUp);
     document.addEventListener('pointercancel', onUp);
     return () => {
@@ -299,7 +311,9 @@ export function MealPlan({
                   <div className="flex items-center justify-center h-full text-primary/70 text-base font-bold">↓</div>
                 )}
                 {!beingDragged && entries.map(entry=>(
-                  <div key={entry.id} className="flex items-start gap-1 select-none cursor-grab"
+                  <div key={entry.id}
+                    className="flex items-start gap-1 select-none cursor-grab"
+                    style={{ touchAction: 'none' }}
                     onPointerDown={(e)=>handleEntryPointerDown(e, entry)}>
                     {inHousehold&&(entry as any).addedBy&&
                       <span className="w-1.5 h-1.5 rounded-full mt-1 shrink-0" style={{background:getMemberColor?.((entry as any).addedBy)||'#888'}}/>}

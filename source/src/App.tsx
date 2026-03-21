@@ -258,16 +258,6 @@ export default function App() {
                 {(user.displayName || user.email || '?')[0].toUpperCase()}
               </div>
             )}
-            <button
-              onClick={() => {
-                const cycle: Record<string, UserSettings['theme']> = { auto: 'light', light: 'dark', dark: 'auto' };
-                saveSettings({ ...settings, theme: cycle[settings.theme] ?? 'auto' });
-              }}
-              className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors text-sm"
-              title={`Theme: ${settings.theme}`}
-            >
-              {settings.theme === 'dark' ? '🌙' : settings.theme === 'light' ? '☀️' : '🔆'}
-            </button>
           </div>
         </div>
       </header>

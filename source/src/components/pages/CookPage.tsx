@@ -100,9 +100,10 @@ export function CookPage({ recipe, onBack }: CookPageProps) {
                   ? 'bg-primary/15 border-primary/40 text-primary font-medium'
                   : 'border-border/50 text-muted-foreground hover:border-primary/30'
               }`}
-              title={wakeLock ? 'Screen will stay on — tap to turn off' : 'Keep screen awake while cooking'}
+              title={wakeLock ? 'Screen will stay on while cooking — tap to turn off' : 'Keep screen awake while cooking'}
             >
-              {wakeLock ? '☀️ On' : '🌙 Off'}
+              <span className="text-[10px] uppercase tracking-wide font-semibold">Wake Lock</span>
+              <span className={`w-1.5 h-1.5 rounded-full ${wakeLock ? 'bg-primary' : 'bg-muted-foreground/40'}`} />
             </button>
           )}
         </div>

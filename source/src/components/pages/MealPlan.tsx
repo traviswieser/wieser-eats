@@ -106,13 +106,14 @@ interface MealPlanProps {
   showToast?: (msg: string) => void;
   currentView: PlannerView;
   onViewChange: (v: PlannerView) => void;
+  onCook: (recipe: Recipe) => void;
 }
 
 const MEAL_SLOTS = ['breakfast','lunch','dinner','snack'] as const;
 const MEAL_ICONS: Record<string,string> = {breakfast:'🌅',lunch:'☀️',dinner:'🌙',snack:'🍿'};
 const VIEW_LABELS: Record<PlannerView,string> = {weekly:'Week',next7:'Next 7',next3:'Next 3',month:'Month'};
 
-export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,getMemberColor,getMemberName,inHousehold,showToast,currentView,onViewChange}: MealPlanProps) {
+export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,getMemberColor,getMemberName,inHousehold,showToast,currentView,onViewChange,onCook}: MealPlanProps) {
   const [offset, setOffset] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<MealPlanEntry|null>(null);
   const [editEntry, setEditEntry] = useState<MealPlanEntry|null>(null);
@@ -311,7 +312,21 @@ export function MealPlan({mealPlan,onRemove,onUpdate,onAddToShoppingList,onAdd,g
                   <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Ingredients</p>
                   <ul className="space-y-0.5">{selectedEntry.recipe.ingredients.map((ing,i)=><li key={i} className="flex items-start gap-1.5 text-xs"><span className="text-primary">●</span>{ing}</li>)}</ul>
                 </div>
+                {selectedEntry.recipe.instructions.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Instructions</p>
+                    <ol className="space-y-2">
+                      {selectedEntry.recipe.instructions.map((step, i) => (
+                        <li key={i} className="flex items-start gap-2 text-xs">
+                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/15 text-primary text-[10px] flex items-center justify-center font-bold mt-0.5">{i+1}</span>
+                          <span>{step.replace(/^\d+[.)]\s*/, '')}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
                 <div className="flex gap-2">
+                  <Button size="sm" onClick={()=>{onCook(selectedEntry.recipe);setSelectedEntry(null);}} className="flex-1 text-xs bg-primary text-primary-foreground">👨‍🍳 Let's Cook!</Button>
                   <Button size="sm" variant="outline" onClick={()=>{setEditEntry(selectedEntry);setSelectedEntry(null);}} className="flex-1 text-xs">✏️ Edit</Button>
                   <Button size="sm" variant="destructive" onClick={()=>{onRemove(selectedEntry.id);setSelectedEntry(null);showToast?.('Removed from plan');}} className="flex-1 text-xs">Remove</Button>
                 </div>

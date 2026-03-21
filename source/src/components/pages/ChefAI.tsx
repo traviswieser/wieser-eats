@@ -24,6 +24,7 @@ interface ChefAIProps {
   onClearRecipes: () => void;
   recipeHistory: RecipeHistory[];
   showToast?: (msg: string) => void;
+  onCook: (recipe: Recipe) => void;
 }
 
 const defaultFilters: AIFilters = {
@@ -240,7 +241,6 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
   const recipes = savedRecipes;
   const [expandedRecipe, setExpandedRecipe] = useState<string | null>(null);
   const [instructionsLoading, setInstructionsLoading] = useState<Set<string>>(new Set());
-  const [fnDebug, setFnDebug] = useState<Record<string, string>>({});
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [editRecipe, setEditRecipe] = useState<Recipe | null>(null);
 
@@ -299,22 +299,14 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
           const fnRes = await fetch(`/.netlify/functions/fetch-recipe?url=${encodeURIComponent(recipe.sourceUrl)}`);
           if (fnRes.ok) {
             const fnData = await fnRes.json();
-            // Always capture debug info so we can show it in the UI
-            if (fnData.debug) {
-              setFnDebug(prev => ({ ...prev, [recipeId]: fnData.debug }));
-            }
             if (fnData.found && fnData.instructions?.length > 0) {
               onRecipesGenerated(recipes.map(r =>
                 r.id === recipeId ? { ...r, instructions: fnData.instructions, instructionSource: 'real' as const } : r
               ));
               return;
             }
-          } else {
-            setFnDebug(prev => ({ ...prev, [recipeId]: `Function HTTP ${fnRes.status}` }));
           }
-        } catch (fnErr: any) {
-          setFnDebug(prev => ({ ...prev, [recipeId]: `Function error: ${fnErr.message || 'failed'}` }));
-        }
+        } catch { /* fallthrough to AI */ }
       }
 
       // 2. AI fallback — generate from ingredient list
@@ -502,11 +494,11 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
               onAddToMealPlan={r => setPlanRecipe(r)}
               onAddToShoppingList={() => addMissingToShoppingList(recipe)}
               onEdit={() => setEditRecipe(recipe)}
+              onCook={() => onCook(recipe)}
               showImage={settings.aiImageGen ?? false}
               pexelsKey={settings.pexelsKey}
               instructionsLoading={instructionsLoading.has(recipe.id)}
               hasAIKey={!!activeKey}
-              fnDebug={fnDebug[recipe.id]}
             />
           ))}
           <p className="text-[10px] text-muted-foreground text-center opacity-60 pt-1">
@@ -589,10 +581,10 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
   );
 }
 
-function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddToMealPlan, onAddToShoppingList, onEdit, showImage, pexelsKey, instructionsLoading, hasAIKey, fnDebug }: {
+function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddToMealPlan, onAddToShoppingList, onEdit, onCook, showImage, pexelsKey, instructionsLoading, hasAIKey }: {
   recipe: Recipe; expanded: boolean; onToggle: () => void; onFavorite: () => void; isFavorite: boolean;
-  onAddToMealPlan: (r: Recipe) => void; onAddToShoppingList: () => void; onEdit: () => void;
-  showImage: boolean; pexelsKey?: string; instructionsLoading: boolean; hasAIKey: boolean; fnDebug?: string;
+  onAddToMealPlan: (r: Recipe) => void; onAddToShoppingList: () => void; onEdit: () => void; onCook: () => void;
+  showImage: boolean; pexelsKey?: string; instructionsLoading: boolean; hasAIKey: boolean;
 }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [imgLoading, setImgLoading] = useState(false);
@@ -709,12 +701,6 @@ function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddT
                   )}
                 </div>
               )}
-              {/* Debug info — shown whenever a function attempt was made */}
-              {fnDebug && (
-                <p className="text-[10px] text-muted-foreground/50 mt-1 font-mono leading-relaxed">
-                  🔧 {fnDebug}
-                </p>
-              )}
             </div>
 
             {/* Source link (when instructions loaded) */}
@@ -727,6 +713,10 @@ function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddT
 
             {/* Actions */}
             <div className="flex flex-wrap gap-2 pt-1">
+              <button onClick={onCook}
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors">
+                👨‍🍳 Let's Cook!
+              </button>
               <button onClick={onFavorite} disabled={isFavorite}
                 className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-md border transition-colors ${isFavorite ? 'bg-secondary text-muted-foreground border-border/50' : 'border-border/50 hover:bg-secondary'}`}>
                 {isFavorite ? '✓ Saved' : '❤️ Favorite'}

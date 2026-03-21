@@ -24,6 +24,7 @@ interface FavoritesProps {
   getMemberName?: (uid?: string) => string;
   getMemberColor?: (uid?: string) => string;
   showToast?: (msg: string) => void;
+  onCook: (recipe: Recipe) => void;
 }
 
 type FavFilter = 'all' | 'mine' | 'household';
@@ -65,7 +66,7 @@ const emptyForm = {
   cookTime: '', servings: '4', cuisine: '', difficulty: '', spiceLevel: '', mealType: '', cookingMethod: '', kidFriendly: false,
 };
 
-export function Favorites({ favorites, onRemove, onUpdate, onAddToMealPlan, onAddToShoppingList, onAddCustomRecipe, settings, currentUserId, inHousehold, getMemberName, getMemberColor, showToast }: FavoritesProps) {
+export function Favorites({ favorites, onRemove, onUpdate, onAddToMealPlan, onAddToShoppingList, onAddCustomRecipe, settings, currentUserId, inHousehold, getMemberName, getMemberColor, showToast, onCook }: FavoritesProps) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Recipe | null>(null);
   const [favFilter, setFavFilter] = useState<FavFilter>('all');
@@ -314,6 +315,7 @@ Return a single JSON object with ALL these fields filled in (use the provided va
                   </ol>
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
+                  <Button size="sm" onClick={() => { onCook(selected); setSelected(null); }} className="text-xs h-7 bg-primary text-primary-foreground">👨‍🍳 Let's Cook!</Button>
                   <Button variant="outline" size="sm" onClick={() => { setPlanRecipe(selected); setSelected(null); }} className="text-xs h-7">📅 Add to Plan</Button>
                   <Button variant="outline" size="sm" onClick={() => addToShoppingList(selected)} className="text-xs h-7">🛒 Ingredients → List</Button>
                   <Button variant="outline" size="sm" onClick={() => { setEditRecipe(selected); setSelected(null); }} className="text-xs h-7">✏️ Edit</Button>

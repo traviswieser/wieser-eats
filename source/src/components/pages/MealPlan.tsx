@@ -271,7 +271,13 @@ export function MealPlan({
   }),{calories:0,protein:0,carbs:0,fat:0}),[viewEntries]);
 
   const generateShopping = () => {
-    const agg = aggregateIngredients(viewEntries.flatMap(e=>e.recipe.ingredients));
+    const todayStr = today();
+    const futureEntries = viewEntries.filter(e => e.date >= todayStr);
+    if (futureEntries.length === 0) {
+      showToast?.('No upcoming meals in this view to generate a list from');
+      return;
+    }
+    const agg = aggregateIngredients(futureEntries.flatMap(e=>e.recipe.ingredients));
     onAddToShoppingList(agg.map((ing,i)=>({id:`shop-${Date.now()}-${i}`,name:ing,quantity:'',checked:false,category:'Meal Plan'})));
     showToast?.(`${agg.length} ingredients added to shopping list`);
   };

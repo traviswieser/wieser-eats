@@ -11,9 +11,21 @@ interface Update {
   tag?: 'new' | 'fix' | 'improvement';
 }
 
-export const LATEST_VERSION = '2.1.0';
+export const LATEST_VERSION = '2.2.0';
 
 export const UPDATES: Update[] = [
+  {
+    version: '2.2.0',
+    date: 'Mar 2026',
+    title: 'Smarter Planning & New Filters',
+    notes: [
+      'Shopping list now only includes today\'s and upcoming meals — no more past days sneaking in',
+      'Undo button appears when you remove a recipe from Favorites — tap it within 4 seconds to restore',
+      'African cuisine filter added to Chef AI',
+      'Fixed default servings showing as 4 on first load even when set to a different number in Settings',
+    ],
+    tag: 'improvement',
+  },
   {
     version: '2.1.0',
     date: 'Mar 2026',

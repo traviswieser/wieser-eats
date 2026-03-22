@@ -66,10 +66,12 @@ export default function App() {
     }
   }, []);
   const { data: settings, save: saveSettings, loaded: settingsLoaded } = useUserSettings(user, defaultSettings);
-  const [toast, setToast] = useState<string | null>(null);
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2800);
+  const [toast, setToast] = useState<{ msg: string; undoFn?: () => void } | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((msg: string, undoFn?: () => void) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ msg, undoFn });
+    toastTimerRef.current = setTimeout(() => setToast(null), undoFn ? 4500 : 2800);
   }, []);
 
   const plannerView: PlannerView = settings.plannerView ?? 'weekly';
@@ -191,7 +193,14 @@ export default function App() {
     const tagged = { ...recipe, addedBy: user?.uid };
     if (!favorites.find(f => f.id === recipe.id)) saveFavorites([...favorites, tagged]);
   };
-  const removeFromFavorites = (id: string) => saveFavorites(favorites.filter(f => f.id !== id));
+  const removeFromFavorites = (id: string) => {
+    const removed = favorites.find(f => f.id === id);
+    const updated = favorites.filter(f => f.id !== id);
+    saveFavorites(updated);
+    if (removed) {
+      showToast('Recipe removed from favorites', () => saveFavorites([...updated, removed]));
+    }
+  };
   const updateFavorite = (updated: Recipe) => saveFavorites(favorites.map(f => f.id === updated.id ? { ...updated, addedBy: (f as any).addedBy } : f));
   const isFavorite = (id: string) => favorites.some(f => f.id === id);
   const addToMealPlan = (entries: MealPlanEntry | MealPlanEntry[]) => {
@@ -300,9 +309,17 @@ export default function App() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
-          <div className="bg-foreground text-background text-xs font-medium px-4 py-2 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200 whitespace-nowrap">
-            ✓ {toast}
+        <div className={`fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] ${toast.undoFn ? 'pointer-events-auto' : 'pointer-events-none'}`}>
+          <div className="bg-foreground text-background text-xs font-medium px-4 py-2 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200 whitespace-nowrap flex items-center gap-3">
+            <span>✓ {toast.msg}</span>
+            {toast.undoFn && (
+              <button
+                onClick={() => { toast.undoFn!(); setToast(null); }}
+                className="text-primary font-bold underline underline-offset-2"
+              >
+                Undo
+              </button>
+            )}
           </div>
         </div>
       )}

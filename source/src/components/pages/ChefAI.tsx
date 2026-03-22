@@ -32,7 +32,7 @@ const defaultFilters: AIFilters = {
   cookingMethod: 'any', servings: 4, spiceLevel: 'any',
 };
 
-const CUISINES = ['Any','American','Mexican','Italian','Chinese','Japanese','Indian','Thai','Mediterranean','Korean','French','Greek','Southern/BBQ'];
+const CUISINES = ['Any','American','Mexican','Italian','Chinese','Japanese','Indian','Thai','Mediterranean','Korean','French','Greek','African','Southern/BBQ'];
 const PROTEINS = ['Chicken','Beef','Ground Beef','Pork','Salmon','Shrimp','Turkey','Tofu','Eggs'];
 
 // ── Edamam helpers ─────────────────────────────────────────────────────────
@@ -232,6 +232,16 @@ async function importRecipeFromPhoto(photoPreview: string, activeKey: AIKeyEntry
 
 export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAddToShoppingList, isFavorite, onGoToSettings, savedRecipes, onRecipesGenerated, onLoadFromHistory, onClearRecipes, recipeHistory, showToast, onCook }: ChefAIProps) {
   const [filters, setFilters] = useState<AIFilters>({ ...defaultFilters, servings: settings.defaultServings });
+  // Fix: useState only runs once on mount. If Firebase hasn't loaded settings yet at that
+  // point (cold load/refresh), servings stays at the hardcoded default of 4. This effect
+  // watches for settings.defaultServings to change (i.e. when Firebase finishes loading)
+  // and syncs it in — but only if the user hasn't manually changed servings themselves.
+  const userChangedServings = useRef(false);
+  useEffect(() => {
+    if (!userChangedServings.current) {
+      setFilters(f => ({ ...f, servings: settings.defaultServings }));
+    }
+  }, [settings.defaultServings]);
   const [query, setQuery] = useState('');
   const [selectedProteins, setSelectedProteins] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -456,7 +466,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
                 <FilterSelect label="Cuisine" value={filters.cuisine} onChange={v => setFilters({...filters, cuisine: v})} options={CUISINES.map(c => [c.toLowerCase(), c])} />
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground">Servings</label>
-                  <Input type="number" min={1} max={20} value={filters.servings} onChange={e => setFilters({...filters, servings: parseInt(e.target.value) || 4})} className="h-9 text-xs bg-background/50" />
+                  <Input type="number" min={1} max={20} value={filters.servings} onChange={e => { userChangedServings.current = true; setFilters({...filters, servings: parseInt(e.target.value) || 4}); }} className="h-9 text-xs bg-background/50" />
                 </div>
               </div>
             )}

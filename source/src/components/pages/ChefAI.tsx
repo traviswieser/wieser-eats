@@ -45,7 +45,7 @@ function buildEdamamUrl(query: string, proteins: string[], filters: AIFilters, s
     app_key: settings.edamamKey,
     random: 'true',
     from: '0',
-    to: '24',
+    to: '30',
   });
 
   const terms = [query, ...proteins].filter(Boolean).join(' ').trim();
@@ -314,7 +314,7 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
       if (hits.length === 0) throw new Error('No recipes found. Try adjusting your search or filters.');
       // Filter out weak protein matches (e.g. "chicken broth" when user selected Chicken),
       // then cap at 14 results so the user always sees a full set.
-      const filtered = filterByProteins(hits, selectedProteins).slice(0, 14);
+      const filtered = filterByProteins(hits, selectedProteins).slice(0, 20);
       if (filtered.length === 0) throw new Error('No recipes matched your protein selection. Try a different search or remove a protein filter.');
       onRecipesGenerated(filtered.map((h: any) => mapEdamamHit(h, filters.servings)));
     } catch (err: any) {

@@ -75,6 +75,7 @@
    ```
 
 ### Deploy to production (only when Travis says "deploy"):
+⚠️ **Before merging, verify `LATEST_VERSION` in `AppUpdates.tsx` has been bumped since the last deploy to `main`. If it hasn't, bump it, rebuild, and push to `dev` first — then deploy.**
 ```
 git checkout main
 git pull origin main --rebase
@@ -331,10 +332,24 @@ service cloud.firestore {
 
 ---
 
-## 🔄 Current Version: v2.1.0
+## 🔄 Current Version: v2.2.1
 
 When adding new features, always update:
 1. `UPDATES` array in `AppUpdates.tsx` — new entry at the top
 2. `LATEST_VERSION` constant in `AppUpdates.tsx`
 3. Version number in Settings About section
 4. This `HANDOFF.md` file
+
+## ⚠️ Version Bump Rules — CRITICAL
+
+**The update popup (`wieser-eats-seen-version` in localStorage vs `LATEST_VERSION`) is the ONLY way users know something changed. If the version doesn't change, the popup never fires — even after a deploy.**
+
+Rules:
+- **Every single push to `main` MUST include a version bump in `AppUpdates.tsx`.** No exceptions — even for one-line fixes or small tweaks.
+- **Never do multiple deploys at the same version.** If you deploy `2.2.0` and then make another fix and deploy again, bump to `2.2.1` before that second deploy.
+- **Version bumps happen BEFORE building**, so the new version string is baked into the `index.html`. Bumping after the build does nothing.
+- Use semantic versioning: `MAJOR.MINOR.PATCH`
+  - Patch (`x.x.1`) — bug fixes, tweaks, small improvements
+  - Minor (`x.1.0`) — new features or meaningful UI changes
+  - Major (`1.0.0`) — large overhauls (rare)
+- Always add a matching entry to the `UPDATES` array describing what changed — users see this in the App Updates page.

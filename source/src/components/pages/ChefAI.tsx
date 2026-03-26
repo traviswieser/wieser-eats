@@ -45,7 +45,7 @@ function buildEdamamUrl(query: string, proteins: string[], filters: AIFilters, s
     app_key: settings.edamamKey,
     random: 'true',
     from: '0',
-    to: '30',
+    to: '35',
   });
 
   const terms = [query, ...proteins].filter(Boolean).join(' ').trim();

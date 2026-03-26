@@ -45,7 +45,7 @@ function buildEdamamUrl(query: string, proteins: string[], filters: AIFilters, s
     app_key: settings.edamamKey,
     random: 'true',
     from: '0',
-    to: '14',
+    to: '35',
   });
 
   const terms = [query, ...proteins].filter(Boolean).join(' ').trim();
@@ -143,6 +143,34 @@ function mapEdamamHit(hit: any, servings: number): Recipe {
     kidFriendly: false,
     sourceUrl: r.url || '',
   };
+}
+
+// ── Protein post-filter ─────────────────────────────────────────────────────
+// Edamam full-text search matches "chicken" anywhere — including "chicken broth".
+// This filter keeps only recipes where the selected protein actually appears as a
+// real ingredient (not just a broth/stock/powder/seasoning/flavoring).
+const WEAK_PROTEIN_SUFFIXES = [
+  'broth', 'stock', 'powder', 'seasoning', 'bouillon', 'flavoring', 'flavor',
+  'base', 'extract', 'concentrate', 'soup', 'gravy mix',
+];
+function proteinIsReal(ingredientLines: string[], protein: string): boolean {
+  const p = protein.toLowerCase();
+  const anyMention = ingredientLines.some(line => line.toLowerCase().includes(p));
+  if (!anyMention) return false;
+  // If EVERY line containing the protein is a weak form, reject the recipe.
+  const mentions = ingredientLines.filter(line => line.toLowerCase().includes(p));
+  const allWeak = mentions.every(line => {
+    const lower = line.toLowerCase();
+    return WEAK_PROTEIN_SUFFIXES.some(suffix => lower.includes(`${p} ${suffix}`) || lower.includes(`${p}-${suffix}`));
+  });
+  return !allWeak;
+}
+function filterByProteins(hits: any[], proteins: string[]): any[] {
+  if (!proteins.length) return hits;
+  return hits.filter(hit => {
+    const lines: string[] = hit.recipe?.ingredientLines || [];
+    return proteins.every(protein => proteinIsReal(lines, protein));
+  });
 }
 
 // ── AI instruction generation ───────────────────────────────────────────────
@@ -284,7 +312,11 @@ export function ChefAI({ pantry, settings, onAddFavorite, onAddToMealPlan, onAdd
       const data = await res.json();
       const hits = data.hits || [];
       if (hits.length === 0) throw new Error('No recipes found. Try adjusting your search or filters.');
-      onRecipesGenerated(hits.map((h: any) => mapEdamamHit(h, filters.servings)));
+      // Filter out weak protein matches (e.g. "chicken broth" when user selected Chicken),
+      // then cap at 14 results so the user always sees a full set.
+      const filtered = filterByProteins(hits, selectedProteins).slice(0, 20);
+      if (filtered.length === 0) throw new Error('No recipes matched your protein selection. Try a different search or remove a protein filter.');
+      onRecipesGenerated(filtered.map((h: any) => mapEdamamHit(h, filters.servings)));
     } catch (err: any) {
       setError(err.message || 'Something went wrong.');
     } finally {
@@ -610,12 +642,46 @@ function RecipeCard({ recipe, expanded, onToggle, onFavorite, isFavorite, onAddT
   useEffect(() => {
     if (!showImage || !pexelsKey || imgUrl) return;
     setImgLoading(true);
-    const searchTerm = recipe.name.replace(/[^a-zA-Z\s]/g, '').trim();
-    fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(searchTerm + ' food')}&per_page=1&orientation=landscape`, {
+
+    // Build a focused search term rather than using the full recipe name.
+    // Strategy: take up to 3 meaningful words from the name (skip filler words),
+    // then prefix with cuisine if it adds useful context.
+    const FILLER = new Set([
+      'a','an','the','and','or','with','in','on','of','for','to','from',
+      'my','your','easy','quick','simple','best','homemade','classic','style',
+      'pan','one','pot','skillet','sheet','slow','instant','air','fried',
+    ]);
+    const nameWords = recipe.name
+      .replace(/[^a-zA-Z\s]/g, '')
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !FILLER.has(w.toLowerCase()))
+      .slice(0, 3);
+
+    const cuisinePrefix =
+      recipe.cuisine && recipe.cuisine.toLowerCase() !== 'american'
+        ? recipe.cuisine.toLowerCase()
+        : '';
+
+    const searchTerm = [cuisinePrefix, ...nameWords].filter(Boolean).join(' ');
+
+    // Fetch 5 candidates and pick the one with the widest aspect ratio
+    // (landscape food photos look best in the recipe card header).
+    fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(searchTerm + ' food dish')}&per_page=5&orientation=landscape`, {
       headers: { Authorization: pexelsKey },
     })
       .then(r => r.json())
-      .then(data => { const photo = data.photos?.[0]; if (photo) setImgUrl(photo.src?.medium || photo.src?.small || null); })
+      .then(data => {
+        const photos: any[] = data.photos || [];
+        if (!photos.length) return;
+        // Prefer photos with the widest aspect ratio (most landscape-friendly).
+        const best = photos.reduce((a, b) => {
+          const ratioA = (a.width || 1) / (a.height || 1);
+          const ratioB = (b.width || 1) / (b.height || 1);
+          return ratioB > ratioA ? b : a;
+        });
+        const url = best.src?.medium || best.src?.large || best.src?.small || null;
+        if (url) setImgUrl(url);
+      })
       .catch(() => {})
       .finally(() => setImgLoading(false));
   }, [showImage, pexelsKey, recipe.name]);
